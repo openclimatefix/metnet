@@ -1,6 +1,4 @@
 from distutils.core import setup
-with open("requirements.txt") as f:
-    install_requires = f.read().splitlines()
 
 setup(
     name="metnet",
@@ -21,7 +19,13 @@ setup(
         "forecasting",
         "remote-sensing"
     ],
-    install_requires=install_requires,
+    install_requires=["einops~=0.3.0",
+                      "numpy~=1.19.5",
+                      "torchvision~=0.10.0",
+                      "antialiased_cnns",
+                      "axial_attention",
+                      "pytorch_msssim",
+                      "torch"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
