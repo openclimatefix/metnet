@@ -1,9 +1,9 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
     name="metnet",
-    version="0.0.6",
-    packages=["metnet"],
+    version="0.0.7",
+    packages=find_packages(),
     url="https://github.com/openclimatefix/metnet",
     license="MIT License",
     company="Open Climate Fix Ltd",
