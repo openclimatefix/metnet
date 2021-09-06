@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-from metnet.layers.utils import get_conv_layer
-from metnet.losses import get_loss
-from metnet.layers import ConvGRU, TimeDistributed, ConditionTime, MetNetPreprocessor
+from .layers.utils import get_conv_layer
+from .layers import ConvGRU, TimeDistributed, ConditionTime, MetNetPreprocessor
 from axial_attention import AxialAttention
 import antialiased_cnns
 
