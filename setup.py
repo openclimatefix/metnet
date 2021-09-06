@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name="metnet",
-    version="0.0.5",
+    version="0.0.6",
     packages=["metnet"],
     url="https://github.com/openclimatefix/metnet",
     license="MIT License",
