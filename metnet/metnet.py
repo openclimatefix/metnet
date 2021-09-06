@@ -50,22 +50,11 @@ class MetNet(torch.nn.Module):
             head: nn.Module = nn.Identity(),
             forecast_steps: int = 48,
             temporal_dropout: float = 0.2,
-            lr: float = 0.001,
-            pretrained: bool = False,
-            visualize: bool = False,
-            loss: str = "mse",
     ):
         super(MetNet, self).__init__()
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
-        self.lr = lr
-        self.pretrained = pretrained
-        self.visualize = visualize
         self.output_channels = output_channels
-        self.criterion = get_loss(
-            loss, channel=output_channels, nonnegative_ssim=True, convert_range=True
-        )
-        self.loss = loss
         self.preprocessor = MetNetPreprocessor(
             sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
         )
