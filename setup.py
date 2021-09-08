@@ -1,4 +1,10 @@
 from setuptools import setup, find_packages
+import os
+
+install_folder = os.path.dirname(os.path.realpath(__file__))
+requirementPath = install_folder + '/requirements.txt'
+with open(requirementPath) as f:
+    install_requires = f.read().splitlines()
 
 setup(
     name="metnet",
@@ -19,13 +25,7 @@ setup(
         "forecasting",
         "remote-sensing"
     ],
-    install_requires=["einops~=0.3.0",
-                      "numpy~=1.19.5",
-                      "torchvision~=0.10.0",
-                      "antialiased_cnns",
-                      "axial_attention",
-                      "pytorch_msssim",
-                      "torch"],
+    install_requires=install_requires,
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
