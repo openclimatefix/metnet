@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 import os
+from pathlib import Path
 
-install_folder = os.path.dirname(os.path.realpath(__file__))
-requirementPath = install_folder + '/requirements.txt'
-with open(requirementPath) as f:
-    install_requires = f.read().splitlines()
+this_directory = Path(__file__).parent
+install_requires = (this_directory / "requirements.txt").read_text().splitlines()
+long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="metnet",
@@ -26,6 +26,8 @@ setup(
         "remote-sensing"
     ],
     install_requires=install_requires,
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
