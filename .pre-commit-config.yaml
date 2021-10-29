@@ -12,7 +12,35 @@ repos:
       - id: debug-statements
       - id: detect-private-key
 
-  # python code formatting
+  # python code formatting/linting
+  - repo: https://github.com/PyCQA/pydocstyle
+    rev: 6.1.1
+    hooks:
+      - id: pydocstyle
+        args:
+          [
+              --convention=google,
+              "--add-ignore=D200,D202,D210,D212,D415",
+              "metnet",
+          ]
+  - repo: https://github.com/PyCQA/flake8
+    rev: 4.0.1
+    hooks:
+      - id: flake8
+        args:
+          [
+              --max-line-length,
+              "100",
+              --extend-ignore=E203,
+              --per-file-ignores,
+              "__init__.py:F401",
+              "metnet",
+          ]
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.9.3
+    hooks:
+      - id: isort
+        args: [--profile, black, --line-length, "100", "metnet"]
   - repo: https://github.com/psf/black
     rev: 20.8b1
     hooks:
