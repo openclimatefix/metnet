@@ -1,16 +1,16 @@
 import torch
-from torch import nn
-import torchvision
 import torch.nn.functional as F
+import torchvision
+from torch import nn
 
 
 class MetNetPreprocessor(nn.Module):
     def __init__(
-            self,
-            sat_channels: int = 12,
-            crop_size: int = 256,
-            use_space2depth: bool = True,
-            split_input: bool = True,
+        self,
+        sat_channels: int = 12,
+        crop_size: int = 256,
+        use_space2depth: bool = True,
+        split_input: bool = True,
     ):
         """
         Performs the MetNet preprocessing of mean pooling Sat channels, followed by
@@ -41,9 +41,7 @@ class MetNetPreprocessor(nn.Module):
         if self.split_input:
             sat_channels = x[:, :, : self.sat_channels, :, :]
             other_channels = x[:, :, self.sat_channels :, :, :]
-            other_channels = torchvision.transforms.CenterCrop(
-                size=other_channels.size()[-1] // 2
-            )(
+            other_channels = torchvision.transforms.CenterCrop(size=other_channels.size()[-1] // 2)(
                 other_channels
             )  # center crop to same as downsample
             other_channels = self.center_crop(other_channels)

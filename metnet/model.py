@@ -1,9 +1,10 @@
+import antialiased_cnns
 import torch
 import torch.nn as nn
-from .layers.utils import get_conv_layer
-from .layers import ConvGRU, TimeDistributed, ConditionTime, MetNetPreprocessor
 from axial_attention import AxialAttention
-import antialiased_cnns
+
+from .layers import ConditionTime, ConvGRU, MetNetPreprocessor, TimeDistributed
+from .layers.utils import get_conv_layer
 
 
 class DownSampler(nn.Module):
@@ -36,19 +37,19 @@ class DownSampler(nn.Module):
 
 class MetNet(torch.nn.Module):
     def __init__(
-            self,
-            image_encoder: str = "downsampler",
-            input_channels: int = 12,
-            sat_channels: int = 12,
-            input_size: int = 256,
-            output_channels: int = 12,
-            hidden_dim: int = 64,
-            kernel_size: int = 3,
-            num_layers: int = 1,
-            num_att_layers: int = 1,
-            head: nn.Module = nn.Identity(),
-            forecast_steps: int = 48,
-            temporal_dropout: float = 0.2,
+        self,
+        image_encoder: str = "downsampler",
+        input_channels: int = 12,
+        sat_channels: int = 12,
+        input_size: int = 256,
+        output_channels: int = 12,
+        hidden_dim: int = 64,
+        kernel_size: int = 3,
+        num_layers: int = 1,
+        num_att_layers: int = 1,
+        head: nn.Module = nn.Identity(),
+        forecast_steps: int = 48,
+        temporal_dropout: float = 0.2,
     ):
         super(MetNet, self).__init__()
         self.forecast_steps = forecast_steps
