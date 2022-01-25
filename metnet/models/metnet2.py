@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 import torchvision.transforms
 import einops
+from typing import List
 
-from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed, DilatedResidualConv
+from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed, DilatedResidualConv, UpsampleResidualConv
 
 
 class MetNet2(torch.nn.Module):
@@ -11,6 +12,13 @@ class MetNet2(torch.nn.Module):
         self,
         image_encoder: str = "downsampler",
         input_channels: int = 12,
+            lstm_channels: int = 128,
+            encoder_channels: int = 384,
+            upsampler_channels: int = 512,
+            lead_time_features: int = 2048,
+            lead_time_layers: int = 2,
+            num_upsampler_blocks: int = 2,
+            encoder_dilations: List[int] = (1,2,4,8,16,32,64,128),
         sat_channels: int = 12,
         input_size: int = 256,
         output_channels: int = 12,
@@ -65,23 +73,30 @@ class MetNet2(torch.nn.Module):
             image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
         )
 
+        # ConvLSTM with 13 timesteps, 128 LSTM channels, 18 encoder blocks, 384 encoder channels,
+
+        # Lead time network layers that generate a bias and scale vector for the lead time
+        self.lead_time_network = nn.ModuleList([nn.Linear(in_features=forecast_steps, out_features=lead_time_features),nn.Linear(in_features=lead_time_features, out_features=2)])
 
         # Convolutional Residual Blocks going from dilation of 1 to 128 with 384 channels
         # 3 stacks of 8 blocks form context aggregating part of arch
-        self.residual_block_one = nn.ModuleList([DilatedResidualConv(input_channels=384, output_channels=384, kernel_size=3, dilation=d) for d in [1,2,4,8,16,32,64,128]])
-        self.residual_block_two = nn.ModuleList([DilatedResidualConv(input_channels=384, output_channels=384, kernel_size=3, dilation=d) for d in [128,64,32,16,8,4,2,1]])
-        self.residual_block_three = nn.ModuleList([DilatedResidualConv(input_channels=384, output_channels=384, kernel_size=3, dilation=1) for _ in range(8)])
-
-
-
+        self.residual_block_one = nn.ModuleList([DilatedResidualConv(input_channels=384, output_channels=encoder_channels, kernel_size=3, dilation=d) for d in encoder_dilations])
+        self.residual_block_two = nn.ModuleList([DilatedResidualConv(input_channels=encoder_channels, output_channels=encoder_channels, kernel_size=3, dilation=d) for d in encoder_dilations])
 
 
         # Center crop the output
         self.center_crop = torchvision.transforms.CenterCrop(size=center_crop_size)
 
         # Then tile 4x4 back to original size
+        # This seems like it would mean something like this, with two applications of a simple upsampling
+        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        # The paper though, under the architecture, has 2 upsample blocks with 512 channels, indicating it might be a
+        # transposed convolution instead?
+        # 2 Upsample blocks with 512 channels
+        self.upsample_blocks = nn.ModuleList(UpsampleResidualConv(input_channels=encoder_channels, output_channels=upsampler_channels, kernel_size=3) for _ in range(num_upsampler_blocks))
 
         # Shallow network of Conv Residual Block Dilation 1 with the lead time MLP embedding added
+        self.residual_block_three = nn.ModuleList([DilatedResidualConv(input_channels=upsampler_channels, output_channels=encoder_channels, kernel_size=3, dilation=1) for _ in range(8)])
 
         # Last layers are a Conv 1x1 with 4096 channels then softmax
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))
