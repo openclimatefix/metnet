@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from axial_attention import AxialAttention
+import torchvision.transforms
+import einops
 
 from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
 
@@ -16,11 +17,32 @@ class MetNet2(torch.nn.Module):
         hidden_dim: int = 64,
         kernel_size: int = 3,
         num_layers: int = 1,
-        num_att_layers: int = 1,
-        head: nn.Module = nn.Identity(),
+        center_crop_size: int = 128,
         forecast_steps: int = 48,
         temporal_dropout: float = 0.2,
     ):
+        """
+        MetNet-2 builds on MetNet-1 to use an even larger context area to predict up to 12 hours ahead.
+
+        Paper: https://arxiv.org/pdf/2111.07470.pdf
+
+        The architecture of MetNet-2 differs from the original MetNet in terms of the axial attention is dropped, and there
+        is more dilated convolutions instead.
+
+
+
+        :param image_encoder:
+        :param input_channels:
+        :param sat_channels:
+        :param input_size:
+        :param output_channels:
+        :param hidden_dim:
+        :param kernel_size:
+        :param num_layers:
+        :param head:
+        :param forecast_steps:
+        :param temporal_dropout:
+        """
         super(MetNet2, self).__init__()
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
@@ -42,16 +64,19 @@ class MetNet2(torch.nn.Module):
         self.temporal_enc = TemporalEncoder(
             image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
         )
-        self.temporal_agg = nn.Sequential(
-            *[
-                AxialAttention(dim=hidden_dim, dim_index=1, heads=8, num_dimensions=2)
-                for _ in range(num_att_layers)
-            ]
-        )
 
-        self.head = head
-        self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
-        # self.head = nn.Sequential(nn.AdaptiveAvgPool2d(1), )
+
+        # Center crop the output
+        self.center_crop = torchvision.transforms.CenterCrop(size=center_crop_size)
+
+        # Then tile 4x4 back to original size
+
+        # Shallow network of Conv Residual Block Dilation 1 with the lead time MLP embedding added
+
+        # Last layers are a Conv 1x1 with 4096 channels then softmax
+        self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))
+
+
 
     def encode_timestep(self, x, fstep=1):
 
@@ -80,6 +105,18 @@ class MetNet2(torch.nn.Module):
             out = self.head(x_i)
             res.append(out)
         res = torch.stack(res, dim=1)
+
+        # Get Center Crop
+        res = self.center_crop(res)
+        # Tile 4x4
+        res = einops.repeat(res, "c t h w -> c t (h h2) (w w2)", h2=4, w2=4)
+
+        # Shallow network
+
+        # Return 1x1 Conv
+        res = self.head(res)
+
+        # Softmax for rain forecasting
         return res
 
 
