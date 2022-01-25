@@ -1,6 +1,7 @@
-from setuptools import setup, find_packages
 import os
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 this_directory = Path(__file__).parent
 install_requires = (this_directory / "requirements.txt").read_text().splitlines()
@@ -23,11 +24,11 @@ setup(
         "attention mechanism",
         "metnet",
         "forecasting",
-        "remote-sensing"
+        "remote-sensing",
     ],
     install_requires=install_requires,
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

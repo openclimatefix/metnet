@@ -1,2 +1,2 @@
-from .model import MetNet
 from .layers import *
+from .model import MetNet
