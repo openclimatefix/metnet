@@ -23,9 +23,7 @@ class ConditionTime(nn.Module):
         "x stack of images, fsteps"
         if self.num_dims == 5:
             bs, seq_len, ch, h, w = x.shape
-            ct = condition_time(x, fstep, (h, w), seq_len=self.horizon).repeat(
-                bs, seq_len, 1, 1, 1
-            )
+            ct = condition_time(x, fstep, (h, w), seq_len=self.horizon).repeat(bs, seq_len, 1, 1, 1)
         else:
             bs, h, w, ch = x.shape
             ct = condition_time(x, fstep, (h, w), seq_len=self.horizon).repeat(bs, 1, 1, 1)

@@ -1,9 +1,11 @@
+import antialiased_cnns
 import torch
 import torch.nn as nn
-from metnet.layers.utils import get_conv_layer
-from metnet.layers import ConvGRU, TimeDistributed, ConditionTime, MetNetPreprocessor
 from axial_attention import AxialAttention
-import antialiased_cnns
+
+from metnet.layers import ConditionTime, ConvGRU, MetNetPreprocessor, TimeDistributed
+from metnet.layers.utils import get_conv_layer
+
 
 class DownSampler(nn.Module):
     def __init__(self, in_channels, output_channels: int = 256, conv_type: str = "standard"):
