@@ -5,13 +5,13 @@ import torch.nn.functional as F
 
 class ConvGRUCell(nn.Module):
     def __init__(
-            self,
-            input_dim,
-            hidden_dim,
-            kernel_size=(3, 3),
-            bias=True,
-            activation=F.tanh,
-            batchnorm=False,
+        self,
+        input_dim,
+        hidden_dim,
+        kernel_size=(3, 3),
+        bias=True,
+        activation=F.tanh,
+        batchnorm=False,
     ):
         """
         Initialize ConvGRU cell.
@@ -124,17 +124,17 @@ class RNNDropout(nn.Module):
 
 class ConvGRU(nn.Module):
     def __init__(
-            self,
-            input_dim,
-            hidden_dim,
-            kernel_size,
-            n_layers,
-            batch_first=True,
-            bias=True,
-            activation=F.tanh,
-            input_p=0.2,
-            hidden_p=0.1,
-            batchnorm=False,
+        self,
+        input_dim,
+        hidden_dim,
+        kernel_size,
+        n_layers,
+        batch_first=True,
+        bias=True,
+        activation=F.tanh,
+        input_p=0.2,
+        hidden_p=0.1,
+        batchnorm=False,
     ):
         super(ConvGRU, self).__init__()
 
@@ -233,11 +233,11 @@ class ConvGRU(nn.Module):
     @staticmethod
     def _check_kernel_size_consistency(kernel_size):
         if not (
-                isinstance(kernel_size, tuple)
-                or (
-                        isinstance(kernel_size, list)
-                        and all([isinstance(elem, tuple) for elem in kernel_size])
-                )
+            isinstance(kernel_size, tuple)
+            or (
+                isinstance(kernel_size, list)
+                and all([isinstance(elem, tuple) for elem in kernel_size])
+            )
         ):
             raise ValueError("`kernel_size` must be tuple or list of tuples")
 
