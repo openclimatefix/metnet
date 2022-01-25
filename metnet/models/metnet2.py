@@ -70,6 +70,9 @@ class MetNet2(torch.nn.Module):
         # 3 stacks of 8 blocks form context aggregating part of arch
         self.residual_block_one = nn.ModuleList([DilatedResidualConv(input_channels=384, output_channels=384, kernel_size=3, dilation=d) for d in [1,2,4,8,16,32,64,128]])
         self.residual_block_two = nn.ModuleList([DilatedResidualConv(input_channels=384, output_channels=384, kernel_size=3, dilation=d) for d in [128,64,32,16,8,4,2,1]])
+        self.residual_block_three = nn.ModuleList([DilatedResidualConv(input_channels=384, output_channels=384, kernel_size=3, dilation=1) for _ in range(8)])
+
+
 
 
 
@@ -119,6 +122,7 @@ class MetNet2(torch.nn.Module):
         res = einops.repeat(res, "c t h w -> c t (h h2) (w w2)", h2=4, w2=4)
 
         # Shallow network
+        res = self.residual_block_three(res)
 
         # Return 1x1 Conv
         res = self.head(res)
