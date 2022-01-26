@@ -4,7 +4,7 @@ import torchvision.transforms
 import einops
 from typing import List
 
-from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed, DilatedResidualConv, UpsampleResidualConv
+from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed, DilatedResidualConv, UpsampleResidualConv, ConvLSTM
 
 
 class MetNet2(torch.nn.Module):
@@ -74,6 +74,7 @@ class MetNet2(torch.nn.Module):
         )
 
         # ConvLSTM with 13 timesteps, 128 LSTM channels, 18 encoder blocks, 384 encoder channels,
+        self.conv_lstm = ConvLSTM(input_dim=input_channels, hidden_dim=lstm_channels, kernel_size=3, num_layers=13)
 
         # Lead time network layers that generate a bias and scale vector for the lead time
         self.lead_time_network = nn.ModuleList([nn.Linear(in_features=forecast_steps, out_features=lead_time_features),nn.Linear(in_features=lead_time_features, out_features=2)])
