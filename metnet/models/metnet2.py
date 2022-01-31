@@ -13,6 +13,7 @@ from metnet.layers import (
     DilatedResidualConv,
     UpsampleResidualConv,
     ConvLSTM,
+    FiLM
 )
 
 
@@ -28,6 +29,7 @@ class MetNet2(torch.nn.Module):
         lead_time_layers: int = 2,
         num_upsampler_blocks: int = 2,
         num_context_blocks: int = 3,
+        num_input_timesteps: int = 13,
         encoder_dilations: List[int] = (1, 2, 4, 8, 16, 32, 64, 128),
         sat_channels: int = 12,
         input_size: int = 256,
@@ -47,19 +49,6 @@ class MetNet2(torch.nn.Module):
         The architecture of MetNet-2 differs from the original MetNet in terms of the axial attention is dropped, and there
         is more dilated convolutions instead.
 
-
-
-        :param image_encoder:
-        :param input_channels:
-        :param sat_channels:
-        :param input_size:
-        :param output_channels:
-        :param hidden_dim:
-        :param kernel_size:
-        :param num_layers:
-        :param head:
-        :param forecast_steps:
-        :param temporal_dropout:
         """
         super(MetNet2, self).__init__()
         self.forecast_steps = forecast_steps
@@ -78,6 +67,7 @@ class MetNet2(torch.nn.Module):
         else:
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
         self.image_encoder = TimeDistributed(image_encoder)
+        # TODO Encode as one hot embedding, then map to continuous representation, then use FiLM to project to
         self.ct = ConditionTime(forecast_steps)
         self.temporal_enc = TemporalEncoder(
             image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
@@ -85,7 +75,7 @@ class MetNet2(torch.nn.Module):
 
         # ConvLSTM with 13 timesteps, 128 LSTM channels, 18 encoder blocks, 384 encoder channels,
         self.conv_lstm = ConvLSTM(
-            input_dim=input_channels, hidden_dim=lstm_channels, kernel_size=3, num_layers=13
+            input_dim=input_channels, hidden_dim=lstm_channels, kernel_size=3, num_layers=num_input_timesteps
         )
 
         # Lead time network layers that generate a bias and scale vector for the lead time

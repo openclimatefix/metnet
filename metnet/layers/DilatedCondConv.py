@@ -1,6 +1,7 @@
 """Dilated Time Conditioned Residual Convolution Block for MetNet-2"""
 import torch
 import torch.nn as nn
+from .FiLM import FiLM
 
 
 class DilatedResidualConv(nn.Module):
@@ -22,7 +23,7 @@ class DilatedResidualConv(nn.Module):
         # TODO Pass in the non-batch size things for layer norm
         self.layer_norm_one = nn.LayerNorm(normalized_shape=(output_channels,))
         # Target Time index conditioning
-
+        self.film = FiLM()
         self.activation = activation
         # TODO Check if same number of input and output channels
         self.dilated_conv_two = nn.Conv2d(
@@ -33,14 +34,14 @@ class DilatedResidualConv(nn.Module):
         )
         self.layer_norm_two = nn.LayerNorm(normalized_shape=(output_channels,))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, beta, gamma) -> torch.Tensor:
         out = self.dilated_conv_one(x)
         out = self.layer_norm_one(out)
-        # TODO Add target time conditioning
+        out = self.film(out, beta, gamma)
         out = self.activation(out)
         out = self.dilated_conv_two(out)
         out = self.layer_norm_two(out)
-        # TODO Add target time conditioning
+        out = self.film(out, beta, gamma)
         out = self.activation(out)
         return x + out
 
@@ -64,7 +65,7 @@ class UpsampleResidualConv(nn.Module):
         # TODO Pass in the non-batch size things for layer norm
         self.layer_norm_one = nn.LayerNorm(normalized_shape=(output_channels,))
         # Target Time index conditioning
-
+        self.film = FiLM()
         self.activation = activation
         # TODO Check if same number of input and output channels
         self.dilated_conv_two = nn.ConvTranspose2d(
@@ -75,13 +76,13 @@ class UpsampleResidualConv(nn.Module):
         )
         self.layer_norm_two = nn.LayerNorm(normalized_shape=(output_channels,))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, beta, gamma) -> torch.Tensor:
         out = self.dilated_conv_one(x)
         out = self.layer_norm_one(out)
-        # TODO Add target time conditioning
+        out = self.film(out, beta, gamma)
         out = self.activation(out)
         out = self.dilated_conv_two(out)
         out = self.layer_norm_two(out)
-        # TODO Add target time conditioning
+        out = self.film(out, beta, gamma)
         out = self.activation(out)
         return x + out
