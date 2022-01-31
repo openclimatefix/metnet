@@ -1,7 +1,7 @@
 """Dilated Time Conditioned Residual Convolution Block for MetNet-2"""
 import torch
 import torch.nn as nn
-from metnet.layers import LeadTimeConditioner
+from metnet.layers.LeadTimeConditioner import LeadTimeConditioner
 
 
 class DilatedResidualConv(nn.Module):
