@@ -13,7 +13,7 @@ from metnet.layers import (
     DilatedResidualConv,
     UpsampleResidualConv,
     ConvLSTM,
-    FiLM
+    LeadTimeConditioner
 )
 
 
@@ -67,7 +67,7 @@ class MetNet2(torch.nn.Module):
         else:
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
         self.image_encoder = TimeDistributed(image_encoder)
-        # TODO Encode as one hot embedding, then map to continuous representation, then use FiLM to project to
+        # TODO Encode as one hot embedding, then map to continuous representation, then use LeadTimeConditioner to project to
         self.ct = ConditionTime(forecast_steps)
         self.temporal_enc = TemporalEncoder(
             image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers

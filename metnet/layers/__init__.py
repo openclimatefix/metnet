@@ -5,4 +5,4 @@ from .Preprocessor import MetNetPreprocessor
 from .TimeDistributed import TimeDistributed
 from .DilatedCondConv import DilatedResidualConv, UpsampleResidualConv
 from .ConvLSTM import ConvLSTM
-from .FiLM import FiLM
+from .LeadTimeConditioner import LeadTimeConditioner
