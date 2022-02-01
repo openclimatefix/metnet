@@ -1,0 +1,270 @@
+"""MetNet-2 model for weather forecasting"""
+import torch
+import torch.nn as nn
+import torchvision.transforms
+import einops
+from typing import List
+
+from metnet.layers import DownSampler, MetNetPreprocessor, TimeDistributed
+from metnet.layers.ConvLSTM import ConvLSTM
+from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualConv
+
+
+class MetNet2(torch.nn.Module):
+    """MetNet-2 model for weather forecasting"""
+
+    def __init__(
+        self,
+        image_encoder: str = "downsampler",
+        input_channels: int = 12,
+        input_size: int = 512,
+        lstm_channels: int = 128,
+        encoder_channels: int = 384,
+        upsampler_channels: int = 512,
+        lead_time_features: int = 2048,
+        upsample_method: str = "interp",
+        num_upsampler_blocks: int = 2,
+        num_context_blocks: int = 3,
+        num_input_timesteps: int = 13,
+        encoder_dilations: List[int] = (1, 2, 4, 8, 16, 32, 64, 128),
+        sat_channels: int = 12,
+        output_channels: int = 12,
+        kernel_size: int = 3,
+        center_crop_size: int = 128,
+        forecast_steps: int = 48,
+    ):
+        """
+        MetNet-2 builds on MetNet-1 to use an even larger context area to predict up to 12 hours ahead.
+
+        Paper: https://arxiv.org/pdf/2111.07470.pdf
+
+        The architecture of MetNet-2 differs from the original MetNet in terms of the axial attention is dropped, and there
+        is more dilated convolutions instead.
+
+        """
+        super(MetNet2, self).__init__()
+        self.forecast_steps = forecast_steps
+        self.input_channels = input_channels
+        self.output_channels = output_channels
+        self.preprocessor = MetNetPreprocessor(
+            sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
+        )
+        # Update number of input_channels with output from MetNetPreprocessor
+        new_channels = sat_channels * 4  # Space2Depth
+        new_channels *= 2  # Concatenate two of them together
+        input_channels = input_channels  # - sat_channels + new_channels
+        if image_encoder in ["downsampler", "default"]:
+            image_encoder = DownSampler(input_channels, output_channels=input_channels)
+        else:
+            raise ValueError(f"Image_encoder {image_encoder} is not recognized")
+        self.image_encoder = TimeDistributed(image_encoder)
+        total_number_of_conv_blocks = num_context_blocks * len(encoder_dilations) + 8
+        total_number_of_conv_blocks = (
+            total_number_of_conv_blocks + num_upsampler_blocks
+            if upsample_method != "interp"
+            else total_number_of_conv_blocks
+        )
+        # TODO Only add this conditioning if adding to ConvLSTM
+        # total_number_of_conv_blocks += num_input_timesteps
+        self.ct = ConditionWithTimeMetNet2(
+            forecast_steps,
+            total_blocks_to_condition=total_number_of_conv_blocks,
+            hidden_dim=lead_time_features,
+        )
+
+        # ConvLSTM with 13 timesteps, 128 LSTM channels, 18 encoder blocks, 384 encoder channels,
+        self.conv_lstm = ConvLSTM(
+            input_dim=input_channels,
+            hidden_dim=lstm_channels,
+            kernel_size=kernel_size,
+            num_layers=num_input_timesteps,
+        )
+        # Convolutional Residual Blocks going from dilation of 1 to 128 with 384 channels
+        # 3 stacks of 8 blocks form context aggregating part of arch -> only two shown in image, so have both
+        self.context_block_one = nn.ModuleList()
+        self.context_block_one.append(
+            DilatedResidualConv(
+                input_channels=lstm_channels,
+                output_channels=encoder_channels,
+                kernel_size=kernel_size,
+                dilation=1,
+            )
+        )
+        self.context_block_one.extend(
+            [
+                DilatedResidualConv(
+                    input_channels=encoder_channels,
+                    output_channels=encoder_channels,
+                    kernel_size=kernel_size,
+                    dilation=d,
+                )
+                for d in encoder_dilations[1:]
+            ]
+        )
+        self.context_blocks = nn.ModuleList()
+        for block in range(num_context_blocks - 1):
+            self.context_blocks.extend(
+                nn.ModuleList(
+                    [
+                        DilatedResidualConv(
+                            input_channels=encoder_channels,
+                            output_channels=encoder_channels,
+                            kernel_size=kernel_size,
+                            dilation=d,
+                        )
+                        for d in encoder_dilations
+                    ]
+                )
+            )
+
+        # Center crop the output
+        self.center_crop = torchvision.transforms.CenterCrop(size=center_crop_size)
+
+        # Then tile 4x4 back to original size
+        # This seems like it would mean something like this, with two applications of a simple upsampling
+        if upsample_method == "interp":
+            self.upsample = nn.Upsample(scale_factor=4, mode="nearest")
+            self.upsampler_changer = nn.Conv2d(
+                in_channels=encoder_channels, out_channels=upsampler_channels, kernel_size=(1, 1)
+            )
+        else:
+            # The paper though, under the architecture, has 2 upsample blocks with 512 channels, indicating it might be a
+            # transposed convolution instead?
+            # 2 Upsample blocks with 512 channels
+            self.upsample = nn.ModuleList(
+                UpsampleResidualConv(
+                    input_channels=encoder_channels,
+                    output_channels=upsampler_channels,
+                    kernel_size=3,
+                )
+                for _ in range(num_upsampler_blocks)
+            )
+        self.upsample_method = upsample_method
+
+        # Shallow network of Conv Residual Block Dilation 1 with the lead time MLP embedding added
+        self.residual_block_three = nn.ModuleList(
+            [
+                DilatedResidualConv(
+                    input_channels=upsampler_channels,
+                    output_channels=upsampler_channels,
+                    kernel_size=kernel_size,
+                    dilation=1,
+                )
+                for _ in range(8)
+            ]
+        )
+
+        # Last layers are a Conv 1x1 with 4096 channels then softmax
+        self.head = nn.Conv2d(upsampler_channels, output_channels, kernel_size=(1, 1))
+
+    def forward(self, x: torch.Tensor):
+        """
+        Compute for all forecast steps
+
+        Args:
+            x: Input tensor in [Batch, Time, Channel, Height, Width]
+
+        Returns:
+            The output predictions for all future timesteps
+        """
+
+        # Compute all timesteps, probably can be parallelized
+        out = []
+        x = self.image_encoder(x)
+        for i in range(self.forecast_steps):
+            # Compute scale and bias
+            scale_and_bias = self.ct(x, i)
+            block_num = 0
+
+            # ConvLSTM
+            res, _ = self.conv_lstm(x)
+            # Select last state only
+            res = res[:, -1]
+
+            # Context Stack
+            for layer in self.context_block_one:
+                scale, bias = scale_and_bias[:, block_num]
+                res = layer(res, scale, bias)
+                block_num += 1
+            for layer in self.context_blocks:
+                scale, bias = scale_and_bias[:, block_num]
+                res = layer(res, scale, bias)
+                block_num += 1
+
+            # Get Center Crop
+            res = self.center_crop(res)
+
+            # Upsample
+            if self.upsample_method == "interp":
+                res = self.upsample(res)
+                res = self.upsampler_changer(res)
+            else:
+                for layer in self.upsample:
+                    scale, bias = scale_and_bias[:, block_num]
+                    res = layer(res, scale, bias)
+                    block_num += 1
+
+            # Shallow network
+            for layer in self.residual_block_three:
+                scale, bias = scale_and_bias[:, block_num]
+                res = layer(res, scale, bias)
+                block_num += 1
+
+            # Return 1x1 Conv
+            res = self.head(res)
+            out.append(res)
+        out = torch.stack(out, dim=1)
+
+        # Softmax for rain forecasting
+        return out
+
+
+class ConditionWithTimeMetNet2(nn.Module):
+    """Compute Scale and bias for conditioning on time"""
+
+    def __init__(
+        self,
+        forecast_steps: int,
+        hidden_dim: int,
+        total_blocks_to_condition: int,
+    ):
+        """
+        Compute the scale and bias factors for conditioning convolutional blocks on the forecast time
+
+        Args:
+            forecast_steps: Number of forecast steps
+            hidden_dim: Hidden dimension size
+            total_blocks_to_condition: Total number of scale, biases that are needed to be computed
+        """
+        super().__init__()
+        self.forecast_steps = forecast_steps
+        self.total_blocks = total_blocks_to_condition
+        self.lead_time_network = nn.ModuleList(
+            [
+                nn.Linear(in_features=forecast_steps, out_features=hidden_dim),
+                nn.Linear(in_features=hidden_dim, out_features=total_blocks_to_condition * 2),
+            ]
+        )
+
+    def forward(self, x: torch.Tensor, timestep: int) -> torch.Tensor:
+        """
+        Get the scale and bias for the conditioning layers
+
+        Args:
+            x: The Tensor that is used
+            timestep: Index of the timestep to use, between 0 and forecast_steps
+
+        Returns:
+            Tensor of shape (Batch, blocks, 2)
+        """
+        # One hot encode the timestep
+        timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=x.dtype)
+        timesteps[:, timestep] = 1
+        # Get scales and biases
+        for layer in self.lead_time_network:
+            timesteps = layer(timesteps)
+        scales_and_biases = timesteps
+        scales_and_biases = einops.rearrange(
+            scales_and_biases, "b (block sb) -> b block sb", block=self.total_blocks, sb=2
+        )
+        return scales_and_biases

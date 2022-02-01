@@ -1,0 +1,29 @@
+import torch.nn as nn
+import torch
+
+
+class LeadTimeConditioner(nn.Module):
+    """
+    The lead time conditioner for MetNet-2, based on
+    'FiLM: Visual Reasoning with a General Conditioning Layer'
+
+    Paper: https://arxiv.org/pdf/1709.07871.pdf
+
+    """
+
+    def forward(self, x: torch.Tensor, scale: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
+        """
+        Add the conditioning to the input tensor
+
+        Args:
+            x: Input tensor
+            scale: Scale parameter
+            bias: Bias parameter
+
+        Returns:
+            Input tensor with the scale multiplied to it and bias added
+        """
+        # TODO Make this a vector of scale and bias for each channel, rather than one for all
+        scale = scale.unsqueeze(1).unsqueeze(2).unsqueeze(3).expand_as(x)
+        bias = bias.unsqueeze(1).unsqueeze(2).unsqueeze(3).expand_as(x)
+        return (scale * x) + bias
