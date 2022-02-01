@@ -29,7 +29,7 @@ def test_metnet_creation():
 
 
 def test_metnet2_creation():
-    model = MetNet2(forecast_steps = 24)
+    model = MetNet2(forecast_steps=24)
     # MetNet expects original HxW to be 4x the input size
     x = torch.randn((2, 12, 16, 256, 256))
     model.eval()
@@ -42,5 +42,5 @@ def test_metnet2_creation():
         12,
         16,
         16,
-        )
+    )
     assert not torch.isnan(out).any(), "Output included NaNs"

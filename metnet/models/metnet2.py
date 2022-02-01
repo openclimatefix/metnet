@@ -21,6 +21,7 @@ class MetNet2(torch.nn.Module):
         self,
         image_encoder: str = "downsampler",
         input_channels: int = 12,
+        input_size: int = 512,
         lstm_channels: int = 128,
         encoder_channels: int = 384,
         upsampler_channels: int = 512,
@@ -31,14 +32,12 @@ class MetNet2(torch.nn.Module):
         num_input_timesteps: int = 13,
         encoder_dilations: List[int] = (1, 2, 4, 8, 16, 32, 64, 128),
         sat_channels: int = 12,
-        input_size: int = 256,
         output_channels: int = 12,
         hidden_dim: int = 64,
         kernel_size: int = 3,
         num_layers: int = 1,
         center_crop_size: int = 128,
         forecast_steps: int = 48,
-        temporal_dropout: float = 0.2,
     ):
         """
         MetNet-2 builds on MetNet-1 to use an even larger context area to predict up to 12 hours ahead.
@@ -66,13 +65,26 @@ class MetNet2(torch.nn.Module):
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
 
         total_number_of_conv_blocks = num_context_blocks * len(encoder_dilations) + 8
-        total_number_of_conv_blocks = total_number_of_conv_blocks + num_upsampler_blocks if upsample_method != 'interp' else total_number_of_conv_blocks
+        total_number_of_conv_blocks = (
+            total_number_of_conv_blocks + num_upsampler_blocks
+            if upsample_method != "interp"
+            else total_number_of_conv_blocks
+        )
         total_number_of_conv_blocks += num_input_timesteps
-        self.ct = ConditionWithTimeMetNet2(forecast_steps, total_blocks_to_condition = total_number_of_conv_blocks, hidden_dim = lead_time_features)
+        self.ct = ConditionWithTimeMetNet2(
+            forecast_steps,
+            total_blocks_to_condition=total_number_of_conv_blocks,
+            hidden_dim=lead_time_features,
+        )
 
         # ConvLSTM with 13 timesteps, 128 LSTM channels, 18 encoder blocks, 384 encoder channels,
         self.conv_lstm = ConvLSTM(
-            input_dim=input_channels, hidden_dim=lstm_channels, kernel_size=3, num_layers=num_input_timesteps
+            input_size=input_size,
+            input_dim=input_channels,
+            hidden_dim=lstm_channels,
+            kernel_size=3,
+            num_layers=num_input_timesteps,
+            batch_first=True,
         )
 
         # Lead time network layers that generate a bias and scale vector for the lead time
@@ -111,7 +123,7 @@ class MetNet2(torch.nn.Module):
 
         # Then tile 4x4 back to original size
         # This seems like it would mean something like this, with two applications of a simple upsampling
-        if upsample_method == 'interp':
+        if upsample_method == "interp":
             self.upsample = nn.Upsample(scale_factor=2, mode="nearest")
         else:
             # The paper though, under the architecture, has 2 upsample blocks with 512 channels, indicating it might be a
@@ -119,7 +131,9 @@ class MetNet2(torch.nn.Module):
             # 2 Upsample blocks with 512 channels
             self.upsample = nn.ModuleList(
                 UpsampleResidualConv(
-                    input_channels=encoder_channels, output_channels=upsampler_channels, kernel_size=3
+                    input_channels=encoder_channels,
+                    output_channels=upsampler_channels,
+                    kernel_size=3,
                 )
                 for _ in range(num_upsampler_blocks)
             )
@@ -154,7 +168,8 @@ class MetNet2(torch.nn.Module):
             scale_and_bias = self.ct(x, i)
             block_num = 0
 
-            #ConvLSTM
+            # ConvLSTM
+            res = self.conv_lstm(x, self.conv_lstm.get_init_states(x.size()[0], device=self.device))
 
             # Context Stack
             for layer in self.context_block_one:
@@ -170,7 +185,7 @@ class MetNet2(torch.nn.Module):
             res = self.center_crop(res)
 
             # Upsample
-            if self.upsample_method == 'interp':
+            if self.upsample_method == "interp":
                 res = self.upsample(res)
             else:
                 for layer in self.upsample:
@@ -216,16 +231,21 @@ class TemporalEncoder(nn.Module):
 
 
 class ConditionWithTimeMetNet2(nn.Module):
-    def __init__(self, forecast_steps, hidden_dim, total_blocks_to_condition, ):
+    def __init__(
+        self,
+        forecast_steps,
+        hidden_dim,
+        total_blocks_to_condition,
+    ):
         super().__init__()
         self.forecast_steps = forecast_steps
         self.total_blocks = total_blocks_to_condition
         self.lead_time_network = nn.ModuleList(
             [
                 nn.Linear(in_features=forecast_steps, out_features=hidden_dim),
-                nn.Linear(in_features=hidden_dim, out_features=total_blocks_to_condition*2),
-                ]
-            )
+                nn.Linear(in_features=hidden_dim, out_features=total_blocks_to_condition * 2),
+            ]
+        )
 
     def forward(self, x: torch.Tensor, timestep: int) -> torch.Tensor:
         """
@@ -239,9 +259,11 @@ class ConditionWithTimeMetNet2(nn.Module):
             Tensor of shape (Batch, blocks, 2)
         """
         # One hot encode the timestep
-        timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype = torch.int16)
+        timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=torch.int16)
         timesteps[:, timestep] = 1
         # Get scales and biases
         scales_and_biases = self.lead_time_network(timesteps)
-        scales_and_biases = einops.rearrange(scales_and_biases, 'b (block sb) -> b block sb', block=self.total_blocks, sb=2)
+        scales_and_biases = einops.rearrange(
+            scales_and_biases, "b (block sb) -> b block sb", block=self.total_blocks, sb=2
+        )
         return scales_and_biases

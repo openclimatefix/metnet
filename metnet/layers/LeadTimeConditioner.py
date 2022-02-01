@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 
+
 class LeadTimeConditioner(nn.Module):
     """
     The lead time conditioner for MetNet-2, based on
@@ -9,6 +10,7 @@ class LeadTimeConditioner(nn.Module):
     Paper: https://arxiv.org/pdf/1709.07871.pdf
 
     """
+
     def forward(self, x: torch.Tensor, scale: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
         """
         Add the conditioning to the input tensor
