@@ -9,6 +9,7 @@ from torch import Tensor
 
 class ConvLSTMCell(nn.Module):
     """ConvLSTM Cell"""
+
     def __init__(
         self,
         input_dim: int,
@@ -139,7 +140,6 @@ class ConvLSTM(nn.Module):
         if not len(kernel_size) == len(hidden_dim) == len(activation) == num_layers:
             raise ValueError("Inconsistent list length.")
 
-
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.kernel_size = kernel_size
@@ -166,7 +166,9 @@ class ConvLSTM(nn.Module):
 
         self.reset_parameters()
 
-    def forward(self, x: torch.Tensor, hidden_state: Optional[list] = None) -> tuple[Tensor, list[tuple[Any, Any]]]:
+    def forward(
+        self, x: torch.Tensor, hidden_state: Optional[list] = None
+    ) -> tuple[Tensor, list[tuple[Any, Any]]]:
         """
         Computes the output of the ConvLSTM
 

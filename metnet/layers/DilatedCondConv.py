@@ -18,9 +18,9 @@ class DilatedResidualConv(nn.Module):
         self.dilated_conv_one = nn.Conv2d(
             in_channels=input_channels,
             out_channels=output_channels,
-            dilation=(dilation,dilation),
-            kernel_size=(kernel_size,kernel_size),
-            padding='same'
+            dilation=(dilation, dilation),
+            kernel_size=(kernel_size, kernel_size),
+            padding="same",
         )
         # Target Time index conditioning
         self.lead_time_conditioner = LeadTimeConditioner()
@@ -28,13 +28,15 @@ class DilatedResidualConv(nn.Module):
         self.dilated_conv_two = nn.Conv2d(
             in_channels=output_channels,
             out_channels=output_channels,
-            dilation=(dilation,dilation),
-            kernel_size=(kernel_size,kernel_size),
-            padding='same'
+            dilation=(dilation, dilation),
+            kernel_size=(kernel_size, kernel_size),
+            padding="same",
         )
         # To make sure number of channels match, might need a 1x1 conv
         if input_channels != output_channels:
-            self.channel_changer = nn.Conv2d(in_channels = input_channels, out_channels = output_channels, kernel_size = (1,1))
+            self.channel_changer = nn.Conv2d(
+                in_channels=input_channels, out_channels=output_channels, kernel_size=(1, 1)
+            )
         else:
             self.channel_changer = nn.Identity()
 
@@ -78,7 +80,9 @@ class UpsampleResidualConv(nn.Module):
         )
 
         if input_channels != output_channels:
-            self.channel_changer = nn.Conv2d(in_channels = input_channels, out_channels = output_channels, kernel_size = (1,1))
+            self.channel_changer = nn.Conv2d(
+                in_channels=input_channels, out_channels=output_channels, kernel_size=(1, 1)
+            )
         else:
             self.channel_changer = nn.Identity()
 

@@ -29,7 +29,15 @@ def test_metnet_creation():
 
 
 def test_metnet2_creation():
-    model = MetNet2(forecast_steps=8, input_size = 128, num_input_timesteps=6, upsampler_channels = 128, lstm_channels = 32, encoder_channels = 64, center_crop_size = 32)
+    model = MetNet2(
+        forecast_steps=8,
+        input_size=128,
+        num_input_timesteps=6,
+        upsampler_channels=128,
+        lstm_channels=32,
+        encoder_channels=64,
+        center_crop_size=32,
+    )
     # MetNet expects original HxW to be 4x the input size
     x = torch.randn((2, 6, 12, 512, 512))
     model.eval()

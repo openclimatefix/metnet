@@ -5,16 +5,14 @@ import torchvision.transforms
 import einops
 from typing import List
 
-from metnet.layers import (
-    DownSampler,
-    MetNetPreprocessor,
-    TimeDistributed
-)
+from metnet.layers import DownSampler, MetNetPreprocessor, TimeDistributed
 from metnet.layers.ConvLSTM import ConvLSTM
 from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualConv
 
+
 class MetNet2(torch.nn.Module):
     """MetNet-2 model for weather forecasting"""
+
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -54,9 +52,9 @@ class MetNet2(torch.nn.Module):
         # Update number of input_channels with output from MetNetPreprocessor
         new_channels = sat_channels * 4  # Space2Depth
         new_channels *= 2  # Concatenate two of them together
-        input_channels = input_channels# - sat_channels + new_channels
+        input_channels = input_channels  # - sat_channels + new_channels
         if image_encoder in ["downsampler", "default"]:
-            image_encoder = DownSampler(input_channels, output_channels = input_channels)
+            image_encoder = DownSampler(input_channels, output_channels=input_channels)
         else:
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
         self.image_encoder = TimeDistributed(image_encoder)
@@ -84,13 +82,16 @@ class MetNet2(torch.nn.Module):
         # Convolutional Residual Blocks going from dilation of 1 to 128 with 384 channels
         # 3 stacks of 8 blocks form context aggregating part of arch -> only two shown in image, so have both
         self.context_block_one = nn.ModuleList()
-        self.context_block_one.append(DilatedResidualConv(
-            input_channels=lstm_channels,
-            output_channels=encoder_channels,
-            kernel_size=kernel_size,
-            dilation=1,
-            ))
-        self.context_block_one.extend([
+        self.context_block_one.append(
+            DilatedResidualConv(
+                input_channels=lstm_channels,
+                output_channels=encoder_channels,
+                kernel_size=kernel_size,
+                dilation=1,
+            )
+        )
+        self.context_block_one.extend(
+            [
                 DilatedResidualConv(
                     input_channels=encoder_channels,
                     output_channels=encoder_channels,
@@ -123,7 +124,9 @@ class MetNet2(torch.nn.Module):
         # This seems like it would mean something like this, with two applications of a simple upsampling
         if upsample_method == "interp":
             self.upsample = nn.Upsample(scale_factor=4, mode="nearest")
-            self.upsampler_changer = nn.Conv2d(in_channels = encoder_channels, out_channels = upsampler_channels, kernel_size = (1,1))
+            self.upsampler_changer = nn.Conv2d(
+                in_channels=encoder_channels, out_channels=upsampler_channels, kernel_size=(1, 1)
+            )
         else:
             # The paper though, under the architecture, has 2 upsample blocks with 512 channels, indicating it might be a
             # transposed convolution instead?
@@ -176,7 +179,7 @@ class MetNet2(torch.nn.Module):
             # ConvLSTM
             res, _ = self.conv_lstm(x)
             # Select last state only
-            res = res[:,-1]
+            res = res[:, -1]
 
             # Context Stack
             for layer in self.context_block_one:
@@ -218,6 +221,7 @@ class MetNet2(torch.nn.Module):
 
 class ConditionWithTimeMetNet2(nn.Module):
     """Compute Scale and bias for conditioning on time"""
+
     def __init__(
         self,
         forecast_steps: int,
