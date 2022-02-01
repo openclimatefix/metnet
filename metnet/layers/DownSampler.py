@@ -1,9 +1,5 @@
 import antialiased_cnns
-import torch
 import torch.nn as nn
-from axial_attention import AxialAttention
-
-from metnet.layers import ConditionTime, ConvGRU, MetNetPreprocessor, TimeDistributed
 from metnet.layers.utils import get_conv_layer
 
 

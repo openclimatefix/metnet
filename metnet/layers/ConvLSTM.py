@@ -11,9 +11,9 @@ class ConvLSTMCell(nn.Module):
     """ConvLSTM Cell"""
     def __init__(
         self,
-        input_dim,
-        hidden_dim,
-        kernel_size,
+        input_dim: int,
+        hidden_dim: int,
+        kernel_size: int,
         bias=True,
         activation=F.tanh,
         batchnorm=False,
@@ -35,7 +35,7 @@ class ConvLSTMCell(nn.Module):
         self.hidden_dim = hidden_dim
 
         self.kernel_size = kernel_size
-        self.padding = kernel_size[0] // 2, kernel_size[1] // 2
+        self.padding = kernel_size // 2, kernel_size // 2
         self.bias = bias
         self.activation = activation
         self.batchnorm = batchnorm
@@ -207,7 +207,7 @@ class ConvLSTM(nn.Module):
         for c in self.cell_list:
             c.reset_parameters()
 
-    def get_init_states(self, x: torch.Tensor) -> List[torch.Tensor, torch.Tensor]:
+    def get_init_states(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
         Constructs the initial hidden states
 

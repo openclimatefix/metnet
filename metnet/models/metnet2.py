@@ -8,11 +8,9 @@ from typing import List
 from metnet.layers import (
     DownSampler,
     MetNetPreprocessor,
-    DilatedResidualConv,
-    UpsampleResidualConv,
-    ConvLSTM,
 )
-
+from metnet.layers.ConvLSTM import ConvLSTM
+from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualConv
 
 class MetNet2(torch.nn.Module):
     """MetNet-2 model for weather forecasting"""
