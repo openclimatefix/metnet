@@ -29,9 +29,9 @@ def test_metnet_creation():
 
 
 def test_metnet2_creation():
-    model = MetNet2(forecast_steps=24)
+    model = MetNet2(forecast_steps=24, input_size = 128)
     # MetNet expects original HxW to be 4x the input size
-    x = torch.randn((2, 12, 16, 256, 256))
+    x = torch.randn((2, 12, 12, 512, 512))
     model.eval()
     with torch.no_grad():
         out = model(x)

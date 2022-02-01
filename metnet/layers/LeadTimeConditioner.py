@@ -23,6 +23,7 @@ class LeadTimeConditioner(nn.Module):
         Returns:
             Input tensor with the scale multiplied to it and bias added
         """
-        scale = scale.unsqueeze(2).unsqueeze(3).expand_as(x)
-        bias = bias.unsqueeze(2).unsqueeze(3).expand_as(x)
+        # TODO Make this a vector of scale and bias for each channel, rather than one for all
+        scale = scale.unsqueeze(1).unsqueeze(2).unsqueeze(3).expand_as(x)
+        bias = bias.unsqueeze(1).unsqueeze(2).unsqueeze(3).expand_as(x)
         return (scale * x) + bias

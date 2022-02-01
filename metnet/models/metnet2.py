@@ -8,6 +8,7 @@ from typing import List
 from metnet.layers import (
     DownSampler,
     MetNetPreprocessor,
+    TimeDistributed
 )
 from metnet.layers.ConvLSTM import ConvLSTM
 from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualConv
@@ -54,12 +55,12 @@ class MetNet2(torch.nn.Module):
         # Update number of input_channels with output from MetNetPreprocessor
         new_channels = sat_channels * 4  # Space2Depth
         new_channels *= 2  # Concatenate two of them together
-        input_channels = input_channels - sat_channels + new_channels
+        input_channels = input_channels# - sat_channels + new_channels
         if image_encoder in ["downsampler", "default"]:
-            self.image_encoder = DownSampler(input_channels + forecast_steps)
+            image_encoder = DownSampler(input_channels, output_channels = input_channels)
         else:
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
-
+        self.image_encoder = TimeDistributed(image_encoder)
         total_number_of_conv_blocks = num_context_blocks * len(encoder_dilations) + 8
         total_number_of_conv_blocks = (
             total_number_of_conv_blocks + num_upsampler_blocks
@@ -160,14 +161,16 @@ class MetNet2(torch.nn.Module):
 
         # Compute all timesteps, probably can be parallelized
         out = []
-        x = self.preprocessor(x)
+        x = self.image_encoder(x)
         for i in range(self.forecast_steps):
             # Compute scale and bias
             scale_and_bias = self.ct(x, i)
             block_num = 0
 
             # ConvLSTM
-            res = self.conv_lstm(x)
+            res, _ = self.conv_lstm(x)
+            # Select last state only
+            res = res[:,-1]
 
             # Context Stack
             for layer in self.context_block_one:
@@ -244,10 +247,12 @@ class ConditionWithTimeMetNet2(nn.Module):
             Tensor of shape (Batch, blocks, 2)
         """
         # One hot encode the timestep
-        timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=torch.int16)
+        timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=x.dtype)
         timesteps[:, timestep] = 1
         # Get scales and biases
-        scales_and_biases = self.lead_time_network(timesteps)
+        for layer in self.lead_time_network:
+            timesteps = layer(timesteps)
+        scales_and_biases = timesteps
         scales_and_biases = einops.rearrange(
             scales_and_biases, "b (block sb) -> b block sb", block=self.total_blocks, sb=2
         )

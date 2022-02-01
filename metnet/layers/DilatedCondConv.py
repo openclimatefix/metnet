@@ -1,6 +1,7 @@
 """Dilated Time Conditioned Residual Convolution Block for MetNet-2"""
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from metnet.layers.LeadTimeConditioner import LeadTimeConditioner
 
 
@@ -17,32 +18,36 @@ class DilatedResidualConv(nn.Module):
         self.dilated_conv_one = nn.Conv2d(
             in_channels=input_channels,
             out_channels=output_channels,
-            dilation=dilation,
-            kernel_size=kernel_size,
+            dilation=(dilation,dilation),
+            kernel_size=(kernel_size,kernel_size),
+            padding='same'
         )
-        # TODO Pass in the non-batch size things for layer norm
-        self.layer_norm_one = nn.LayerNorm(normalized_shape=(output_channels,))
         # Target Time index conditioning
         self.lead_time_conditioner = LeadTimeConditioner()
         self.activation = activation
-        # TODO Check if same number of input and output channels
         self.dilated_conv_two = nn.Conv2d(
             in_channels=output_channels,
             out_channels=output_channels,
-            dilation=dilation,
-            kernel_size=kernel_size,
+            dilation=(dilation,dilation),
+            kernel_size=(kernel_size,kernel_size),
+            padding='same'
         )
-        self.layer_norm_two = nn.LayerNorm(normalized_shape=(output_channels,))
+        # To make sure number of channels match, might need a 1x1 conv
+        if input_channels != output_channels:
+            self.channel_changer = nn.Conv2d(in_channels = input_channels, out_channels = output_channels, kernel_size = (1,1))
+        else:
+            self.channel_changer = nn.Identity()
 
     def forward(self, x: torch.Tensor, beta, gamma) -> torch.Tensor:
         out = self.dilated_conv_one(x)
-        out = self.layer_norm_one(out)
+        out = F.layer_norm(out, out.size()[1:])
         out = self.lead_time_conditioner(out, beta, gamma)
         out = self.activation(out)
         out = self.dilated_conv_two(out)
-        out = self.layer_norm_two(out)
+        out = F.layer_norm(out, out.size()[1:])
         out = self.lead_time_conditioner(out, beta, gamma)
         out = self.activation(out)
+        x = self.channel_changer(x)
         return x + out
 
 
@@ -62,27 +67,29 @@ class UpsampleResidualConv(nn.Module):
             stride=2,
             kernel_size=kernel_size,
         )
-        # TODO Pass in the non-batch size things for layer norm
-        self.layer_norm_one = nn.LayerNorm(normalized_shape=(output_channels,))
         # Target Time index conditioning
         self.lead_time_conditioner = LeadTimeConditioner()
         self.activation = activation
-        # TODO Check if same number of input and output channels
         self.dilated_conv_two = nn.ConvTranspose2d(
             in_channels=output_channels,
             out_channels=output_channels,
             stride=2,
             kernel_size=kernel_size,
         )
-        self.layer_norm_two = nn.LayerNorm(normalized_shape=(output_channels,))
+
+        if input_channels != output_channels:
+            self.channel_changer = nn.Conv2d(in_channels = input_channels, out_channels = output_channels, kernel_size = (1,1))
+        else:
+            self.channel_changer = nn.Identity()
 
     def forward(self, x: torch.Tensor, beta, gamma) -> torch.Tensor:
         out = self.dilated_conv_one(x)
-        out = self.layer_norm_one(out)
+        out = F.layer_norm(out, out.size()[1:])
         out = self.lead_time_conditioner(out, beta, gamma)
         out = self.activation(out)
         out = self.dilated_conv_two(out)
-        out = self.layer_norm_two(out)
+        out = F.layer_norm(out, out.size()[1:])
         out = self.lead_time_conditioner(out, beta, gamma)
         out = self.activation(out)
+        x = self.channel_changer(x)
         return x + out
