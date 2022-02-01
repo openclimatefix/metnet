@@ -1,3 +1,4 @@
+"""MetNet-2 model for weather forecasting"""
 import torch
 import torch.nn as nn
 import torchvision.transforms
@@ -5,11 +6,8 @@ import einops
 from typing import List
 
 from metnet.layers import (
-    ConditionTime,
-    ConvGRU,
     DownSampler,
     MetNetPreprocessor,
-    TimeDistributed,
     DilatedResidualConv,
     UpsampleResidualConv,
     ConvLSTM,
@@ -17,6 +15,7 @@ from metnet.layers import (
 
 
 class MetNet2(torch.nn.Module):
+    """MetNet-2 model for weather forecasting"""
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -35,7 +34,6 @@ class MetNet2(torch.nn.Module):
         output_channels: int = 12,
         hidden_dim: int = 64,
         kernel_size: int = 3,
-        num_layers: int = 1,
         center_crop_size: int = 128,
         forecast_steps: int = 48,
     ):
@@ -70,7 +68,8 @@ class MetNet2(torch.nn.Module):
             if upsample_method != "interp"
             else total_number_of_conv_blocks
         )
-        total_number_of_conv_blocks += num_input_timesteps
+        # TODO Only add this conditioning if adding to ConvLSTM
+        # total_number_of_conv_blocks += num_input_timesteps
         self.ct = ConditionWithTimeMetNet2(
             forecast_steps,
             total_blocks_to_condition=total_number_of_conv_blocks,
@@ -79,16 +78,11 @@ class MetNet2(torch.nn.Module):
 
         # ConvLSTM with 13 timesteps, 128 LSTM channels, 18 encoder blocks, 384 encoder channels,
         self.conv_lstm = ConvLSTM(
-            input_size=input_size,
             input_dim=input_channels,
             hidden_dim=lstm_channels,
-            kernel_size=3,
+            kernel_size=kernel_size,
             num_layers=num_input_timesteps,
-            batch_first=True,
         )
-
-        # Lead time network layers that generate a bias and scale vector for the lead time
-
         # Convolutional Residual Blocks going from dilation of 1 to 128 with 384 channels
         # 3 stacks of 8 blocks form context aggregating part of arch -> only two shown in image, so have both
         self.context_block_one = nn.ModuleList(
@@ -96,7 +90,7 @@ class MetNet2(torch.nn.Module):
                 DilatedResidualConv(
                     input_channels=lstm_channels,
                     output_channels=encoder_channels,
-                    kernel_size=3,
+                    kernel_size=kernel_size,
                     dilation=d,
                 )
                 for d in encoder_dilations
@@ -110,7 +104,7 @@ class MetNet2(torch.nn.Module):
                         DilatedResidualConv(
                             input_channels=encoder_channels,
                             output_channels=encoder_channels,
-                            kernel_size=3,
+                            kernel_size=kernel_size,
                             dilation=d,
                         )
                         for d in encoder_dilations
@@ -145,7 +139,7 @@ class MetNet2(torch.nn.Module):
                 DilatedResidualConv(
                     input_channels=upsampler_channels,
                     output_channels=encoder_channels,
-                    kernel_size=3,
+                    kernel_size=kernel_size,
                     dilation=1,
                 )
                 for _ in range(8)
@@ -156,8 +150,14 @@ class MetNet2(torch.nn.Module):
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))
 
     def forward(self, x: torch.Tensor):
-        """It takes a rank 5 tensor
-        - imgs [bs, seq_len, channels, h, w]
+        """
+        Compute for all forecast steps
+
+        Args:
+            x: Input tensor in [Batch, Time, Channel, Height, Width]
+
+        Returns:
+            The output predictions for all future timesteps
         """
 
         # Compute all timesteps, probably can be parallelized
@@ -169,7 +169,7 @@ class MetNet2(torch.nn.Module):
             block_num = 0
 
             # ConvLSTM
-            res = self.conv_lstm(x, self.conv_lstm.get_init_states(x.size()[0], device=self.device))
+            res = self.conv_lstm(x)
 
             # Context Stack
             for layer in self.context_block_one:
@@ -208,35 +208,22 @@ class MetNet2(torch.nn.Module):
         return out
 
 
-class TemporalEncoder(nn.Module):
-    # TODO New temporal encoder for MetNet-2 with
-    """
-    The input to MetNet-2 captures 2048 km×2048 km of weather context for each input feature,
-     but it is downsampled by a factor of 4 in each spatial dimension,
-      resulting in an input patch of 512×512 positions.
-      In addition to the input patches having spatial dimensions,
-       they also have a time dimension in the form of multiple time slices (see Supplement B.1 Table 4 for details.)
-       This is to ensure that the network has accessto the temporal dynamics in the input features.
-        After padding and concatenation together along the depth axis, the input sets are embedded
-         using a convolutional recurrent network [32] in the time dimension
-    """
-
-    def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
-        super().__init__()
-        self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
-
-    def forward(self, x):
-        x, h = self.rnn(x)
-        return (x, h[-1])
-
-
 class ConditionWithTimeMetNet2(nn.Module):
+    """Compute Scale and bias for conditioning on time"""
     def __init__(
         self,
-        forecast_steps,
-        hidden_dim,
-        total_blocks_to_condition,
+        forecast_steps: int,
+        hidden_dim: int,
+        total_blocks_to_condition: int,
     ):
+        """
+        Compute the scale and bias factors for conditioning convolutional blocks on the forecast time
+
+        Args:
+            forecast_steps: Number of forecast steps
+            hidden_dim: Hidden dimension size
+            total_blocks_to_condition: Total number of scale, biases that are needed to be computed
+        """
         super().__init__()
         self.forecast_steps = forecast_steps
         self.total_blocks = total_blocks_to_condition

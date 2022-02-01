@@ -1,14 +1,16 @@
 """Originally adapted from https://github.com/aserdega/convlstmgru, MIT License Andriy Serdega"""
+from typing import Any, List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 
 
 class ConvLSTMCell(nn.Module):
+    """ConvLSTM Cell"""
     def __init__(
         self,
-        input_size,
         input_dim,
         hidden_dim,
         kernel_size,
@@ -17,23 +19,18 @@ class ConvLSTMCell(nn.Module):
         batchnorm=False,
     ):
         """
-        Initialize ConvLSTM cell.
-        Parameters
-        ----------
-        input_size: (int, int)
-            Height and width of input tensor as (height, width).
-        input_dim: int
-            Number of channels of input tensor.
-        hidden_dim: int
-            Number of channels of hidden state.
-        kernel_size: (int, int)
-            Size of the convolutional kernel.
-        bias: bool
-            Whether or not to add the bias.
+        ConLSTM Cell
+
+        Args:
+            input_dim: Number of input channels
+            hidden_dim: Number of hidden channels
+            kernel_size: Kernel size
+            bias: Whether to add bias
+            activation: ACtivation to use
+            batchnorm: Whether to use batch norm
         """
         super(ConvLSTMCell, self).__init__()
 
-        self.height, self.width = input_size
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
 
@@ -53,10 +50,20 @@ class ConvLSTMCell(nn.Module):
 
         self.reset_parameters()
 
-    def forward(self, input, prev_state):
+    def forward(self, x: torch.Tensor, prev_state: list) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Compute forward pass
+
+        Args:
+            x: Input tensor of [Batch, Channel, Height, Width]
+            prev_state: Previous hidden state
+
+        Returns:
+            The new hidden state and output
+        """
         h_prev, c_prev = prev_state
 
-        combined = torch.cat((input, h_prev), dim=1)  # concatenate along channel axis
+        combined = torch.cat((x, h_prev), dim=1)  # concatenate along channel axis
         combined_conv = self.conv(combined)
 
         cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.hidden_dim, dim=1)
@@ -73,16 +80,24 @@ class ConvLSTMCell(nn.Module):
 
         return h_cur, c_cur
 
-    def init_hidden(self, batch_size, device="cuda"):
+    def init_hidden(self, x: torch.Tensor) -> tuple[Any, Any]:
+        """
+        Initializes the hidden state
+        Args:
+            x: Input tensor to initialize for
+
+        Returns:
+            Tuple containing the hidden states
+        """
         state = (
-            torch.zeros(batch_size, self.hidden_dim, self.height, self.width),
-            torch.zeros(batch_size, self.hidden_dim, self.height, self.width),
+            torch.zeros(x.size()[0], self.hidden_dim, x.size()[3], x.size()[4]),
+            torch.zeros(x.size()[0], self.hidden_dim, x.size()[3], x.size()[4]),
         )
-        state = (state[0].to(device), state[1].to(device))
+        state = (state[0].type_as(x), state[1].type_as(x))
         return state
 
-    def reset_parameters(self):
-        # self.conv.reset_parameters()
+    def reset_parameters(self) -> None:
+        """Resets parameters"""
         nn.init.xavier_uniform_(self.conv.weight, gain=nn.init.calculate_gain("tanh"))
         self.conv.bias.data.zero_()
 
@@ -94,19 +109,27 @@ class ConvLSTMCell(nn.Module):
 class ConvLSTM(nn.Module):
     def __init__(
         self,
-        input_size,
-        input_dim,
-        hidden_dim,
-        kernel_size,
-        num_layers,
-        batch_first=False,
+        input_dim: int,
+        hidden_dim: int,
+        kernel_size: int,
+        num_layers: int,
         bias=True,
         activation=F.tanh,
         batchnorm=False,
     ):
-        super(ConvLSTM, self).__init__()
+        """
+        ConvLSTM module
 
-        self._check_kernel_size_consistency(kernel_size)
+        Args:
+            input_dim: Input dimension size
+            hidden_dim: Hidden dimension size
+            kernel_size: Kernel size
+            num_layers: Number of layers
+            bias: Whether to add bias
+            activation: Activation function
+            batchnorm: Whether to use batch norm
+        """
+        super(ConvLSTM, self).__init__()
 
         # Make sure that both `kernel_size` and `hidden_dim` are lists having len == num_layers
         kernel_size = self._extend_for_multilayer(kernel_size, num_layers)
@@ -116,13 +139,12 @@ class ConvLSTM(nn.Module):
         if not len(kernel_size) == len(hidden_dim) == len(activation) == num_layers:
             raise ValueError("Inconsistent list length.")
 
-        self.height, self.width = input_size
 
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.kernel_size = kernel_size
         self.num_layers = num_layers
-        self.batch_first = batch_first
+        self.batch_first = True
         self.bias = bias
 
         cell_list = []
@@ -131,7 +153,6 @@ class ConvLSTM(nn.Module):
 
             cell_list.append(
                 ConvLSTMCell(
-                    input_size=(self.height, self.width),
                     input_dim=cur_input_dim,
                     hidden_dim=self.hidden_dim[i],
                     kernel_size=self.kernel_size[i],
@@ -145,26 +166,24 @@ class ConvLSTM(nn.Module):
 
         self.reset_parameters()
 
-    def forward(self, input, hidden_state):
+    def forward(self, x: torch.Tensor, hidden_state: list) -> tuple[Tensor, list[tuple[Any, Any]]]:
         """
+        Computes the output of the ConvLSTM
 
-        Parameters
-        ----------
-        input_tensor:
-            5-D Tensor either of shape (t, b, c, h, w) or (b, t, c, h, w)
-        hidden_state:
-        Returns
-        -------
-        last_state_list, layer_output
+        Args:
+            x: Input Tensor of shape [Batch, Time, Channel, Width, Height]
+            hidden_state: List of hidden states to use, if none passed, it will be generated
+
+        Returns:
+            The layer output and list of last states
         """
-        cur_layer_input = torch.unbind(input, dim=int(self.batch_first))
+        cur_layer_input = torch.unbind(x, dim=int(self.batch_first))
 
         if not hidden_state:
-            hidden_state = self.get_init_states(cur_layer_input[0].size(int(not self.batch_first)))
+            hidden_state = self.get_init_states(x)
 
         seq_len = len(cur_layer_input)
 
-        layer_output_list = []
         last_state_list = []
 
         for layer_idx in range(self.num_layers):
@@ -181,29 +200,40 @@ class ConvLSTM(nn.Module):
 
         return layer_output, last_state_list
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
+        """
+        Reset parameters
+        """
         for c in self.cell_list:
             c.reset_parameters()
 
-    def get_init_states(self, batch_size, device="cuda"):
+    def get_init_states(self, x: torch.Tensor) -> List[torch.Tensor, torch.Tensor]:
+        """
+        Constructs the initial hidden states
+
+        Args:
+            x: Tensor to use for constructing state
+
+        Returns:
+            The initial hidden states for all the layers in the network
+        """
         init_states = []
         for i in range(self.num_layers):
-            init_states.append(self.cell_list[i].init_hidden(batch_size, device))
+            init_states.append(self.cell_list[i].init_hidden(x))
         return init_states
 
     @staticmethod
-    def _check_kernel_size_consistency(kernel_size):
-        if not (
-            isinstance(kernel_size, tuple)
-            or (
-                isinstance(kernel_size, list)
-                and all([isinstance(elem, tuple) for elem in kernel_size])
-            )
-        ):
-            raise ValueError("`Kernel_size` must be tuple or list of tuples")
-
-    @staticmethod
     def _extend_for_multilayer(param, num_layers):
+        """
+        Extends a parameter for multiple layers
+
+        Args:
+            param: Parameter to copy
+            num_layers: Number of layers
+
+        Returns:
+            The extended parameter
+        """
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
