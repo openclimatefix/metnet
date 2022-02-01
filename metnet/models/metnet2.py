@@ -31,7 +31,6 @@ class MetNet2(torch.nn.Module):
         encoder_dilations: List[int] = (1, 2, 4, 8, 16, 32, 64, 128),
         sat_channels: int = 12,
         output_channels: int = 12,
-        hidden_dim: int = 64,
         kernel_size: int = 3,
         center_crop_size: int = 128,
         forecast_steps: int = 48,
@@ -84,15 +83,21 @@ class MetNet2(torch.nn.Module):
         )
         # Convolutional Residual Blocks going from dilation of 1 to 128 with 384 channels
         # 3 stacks of 8 blocks form context aggregating part of arch -> only two shown in image, so have both
-        self.context_block_one = nn.ModuleList(
-            [
+        self.context_block_one = nn.ModuleList()
+        self.context_block_one.append(DilatedResidualConv(
+            input_channels=lstm_channels,
+            output_channels=encoder_channels,
+            kernel_size=kernel_size,
+            dilation=1,
+            ))
+        self.context_block_one.extend([
                 DilatedResidualConv(
-                    input_channels=lstm_channels,
+                    input_channels=encoder_channels,
                     output_channels=encoder_channels,
                     kernel_size=kernel_size,
                     dilation=d,
                 )
-                for d in encoder_dilations
+                for d in encoder_dilations[1:]
             ]
         )
         self.context_blocks = nn.ModuleList()
@@ -117,7 +122,8 @@ class MetNet2(torch.nn.Module):
         # Then tile 4x4 back to original size
         # This seems like it would mean something like this, with two applications of a simple upsampling
         if upsample_method == "interp":
-            self.upsample = nn.Upsample(scale_factor=2, mode="nearest")
+            self.upsample = nn.Upsample(scale_factor=4, mode="nearest")
+            self.upsampler_changer = nn.Conv2d(in_channels = encoder_channels, out_channels = upsampler_channels, kernel_size = (1,1))
         else:
             # The paper though, under the architecture, has 2 upsample blocks with 512 channels, indicating it might be a
             # transposed convolution instead?
@@ -137,7 +143,7 @@ class MetNet2(torch.nn.Module):
             [
                 DilatedResidualConv(
                     input_channels=upsampler_channels,
-                    output_channels=encoder_channels,
+                    output_channels=upsampler_channels,
                     kernel_size=kernel_size,
                     dilation=1,
                 )
@@ -146,7 +152,7 @@ class MetNet2(torch.nn.Module):
         )
 
         # Last layers are a Conv 1x1 with 4096 channels then softmax
-        self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))
+        self.head = nn.Conv2d(upsampler_channels, output_channels, kernel_size=(1, 1))
 
     def forward(self, x: torch.Tensor):
         """
@@ -188,6 +194,7 @@ class MetNet2(torch.nn.Module):
             # Upsample
             if self.upsample_method == "interp":
                 res = self.upsample(res)
+                res = self.upsampler_changer(res)
             else:
                 for layer in self.upsample:
                     scale, bias = scale_and_bias[:, block_num]
