@@ -1,6 +1,6 @@
 import torch
 
-from metnet import MetNet
+from metnet import MetNet, MetNet2
 
 
 def test_metnet_creation():
@@ -25,4 +25,22 @@ def test_metnet_creation():
         16,
         16,
     )
+    assert not torch.isnan(out).any(), "Output included NaNs"
+
+
+def test_metnet2_creation():
+    model = MetNet2(forecast_steps = 24)
+    # MetNet expects original HxW to be 4x the input size
+    x = torch.randn((2, 12, 16, 256, 256))
+    model.eval()
+    with torch.no_grad():
+        out = model(x)
+    # MetNet creates predictions for the center 1/4th
+    assert out.size() == (
+        2,
+        24,
+        12,
+        16,
+        16,
+        )
     assert not torch.isnan(out).any(), "Output included NaNs"
