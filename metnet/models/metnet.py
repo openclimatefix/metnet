@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 from axial_attention import AxialAttention
+from huggingface_hub import PyTorchModelHubMixin
 
 from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
 
 
-class MetNet(torch.nn.Module):
+class MetNet(torch.nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -17,14 +18,31 @@ class MetNet(torch.nn.Module):
         kernel_size: int = 3,
         num_layers: int = 1,
         num_att_layers: int = 1,
-        head: nn.Module = nn.Identity(),
         forecast_steps: int = 48,
         temporal_dropout: float = 0.2,
+        **kwargs,
     ):
         super(MetNet, self).__init__()
+        config = locals()
+        config.pop("self")
+        config.pop("__class__")
+        self.config = kwargs.pop("config", config)
+        sat_channels = self.config["sat_channels"]
+        input_size = self.config["input_size"]
+        input_channels = self.config["input_channels"]
+        temporal_dropout = self.config["temporal_dropout"]
+        image_encoder = self.config["image_encoder"]
+        forecast_steps = self.config["forecast_steps"]
+        hidden_dim = self.config["hidden_dim"]
+        kernel_size = self.config["kernel_size"]
+        num_layers = self.config["num_layers"]
+        num_att_layers = self.config["num_att_layers"]
+        output_channels = self.config["output_channels"]
+
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
         self.output_channels = output_channels
+
         self.preprocessor = MetNetPreprocessor(
             sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
         )
@@ -49,9 +67,7 @@ class MetNet(torch.nn.Module):
             ]
         )
 
-        self.head = head
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
-        # self.head = nn.Sequential(nn.AdaptiveAvgPool2d(1), )
 
     def encode_timestep(self, x, fstep=1):
 

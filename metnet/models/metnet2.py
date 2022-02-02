@@ -1,16 +1,18 @@
 """MetNet-2 model for weather forecasting"""
+from typing import List
+
+import einops
 import torch
 import torch.nn as nn
 import torchvision.transforms
-import einops
-from typing import List
+from huggingface_hub import PyTorchModelHubMixin
 
 from metnet.layers import DownSampler, MetNetPreprocessor, TimeDistributed
 from metnet.layers.ConvLSTM import ConvLSTM
 from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualConv
 
 
-class MetNet2(torch.nn.Module):
+class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
     """MetNet-2 model for weather forecasting"""
 
     def __init__(
@@ -32,6 +34,7 @@ class MetNet2(torch.nn.Module):
         kernel_size: int = 3,
         center_crop_size: int = 128,
         forecast_steps: int = 48,
+        **kwargs,
     ):
         """
         MetNet-2 builds on MetNet-1 to use an even larger context area to predict up to 12 hours ahead.
@@ -41,8 +44,50 @@ class MetNet2(torch.nn.Module):
         The architecture of MetNet-2 differs from the original MetNet in terms of the axial attention is dropped, and there
         is more dilated convolutions instead.
 
+        Args:
+            image_encoder:
+            input_channels:
+            input_size:
+            lstm_channels:
+            encoder_channels:
+            upsampler_channels:
+            lead_time_features:
+            upsample_method:
+            num_upsampler_blocks:
+            num_context_blocks:
+            num_input_timesteps:
+            encoder_dilations:
+            sat_channels:
+            output_channels:
+            kernel_size:
+            center_crop_size:
+            forecast_steps:
+            **kwargs:
         """
         super(MetNet2, self).__init__()
+        config = locals()
+        config.pop("self")
+        config.pop("__class__")
+        self.config = kwargs.pop("config", config)
+
+        sat_channels = self.config["sat_channels"]
+        input_size = self.config["input_size"]
+        input_channels = self.config["input_channels"]
+        lstm_channels = self.config["lstm_channels"]
+        image_encoder = self.config["image_encoder"]
+        forecast_steps = self.config["forecast_steps"]
+        encoder_channels = self.config["encoder_channels"]
+        kernel_size = self.config["kernel_size"]
+        num_context_blocks = self.config["num_context_blocks"]
+        num_upsampler_blocks = self.config["num_upsampler_blocks"]
+        encoder_dilations = self.config["encoder_dilations"]
+        upsample_method = self.config["upsample_method"]
+        output_channels = self.config["output_channels"]
+        lead_time_features = self.config["lead_time_features"]
+        num_input_timesteps = self.config["num_input_timesteps"]
+        center_crop_size = self.config["center_crop_size"]
+        upsampler_channels = self.config["upsampler_channels"]
+
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
         self.output_channels = output_channels
