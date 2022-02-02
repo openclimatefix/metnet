@@ -1,10 +1,10 @@
 """MetNet-2 model for weather forecasting"""
+from typing import List
+
+import einops
 import torch
 import torch.nn as nn
 import torchvision.transforms
-import einops
-from typing import List
-
 from huggingface_hub import PyTorchModelHubMixin
 
 from metnet.layers import DownSampler, MetNetPreprocessor, TimeDistributed
