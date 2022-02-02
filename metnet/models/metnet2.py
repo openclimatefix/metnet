@@ -34,7 +34,7 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         kernel_size: int = 3,
         center_crop_size: int = 128,
         forecast_steps: int = 48,
-        **kwargs
+        **kwargs,
     ):
         """
         MetNet-2 builds on MetNet-1 to use an even larger context area to predict up to 12 hours ahead.

@@ -20,7 +20,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         num_att_layers: int = 1,
         forecast_steps: int = 48,
         temporal_dropout: float = 0.2,
-        **kwargs
+        **kwargs,
     ):
         super(MetNet, self).__init__()
         config = locals()
@@ -42,7 +42,6 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
         self.output_channels = output_channels
-
 
         self.preprocessor = MetNetPreprocessor(
             sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
@@ -69,7 +68,6 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         )
 
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
-
 
     def encode_timestep(self, x, fstep=1):
 
