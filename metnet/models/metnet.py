@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 from axial_attention import AxialAttention
+from huggingface_hub import PyTorchModelHubMixin
 
 from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
 
 
-class MetNet(torch.nn.Module):
+class MetNet(torch.nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         image_encoder: str = "downsampler",

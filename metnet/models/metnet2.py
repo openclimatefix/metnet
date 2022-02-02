@@ -5,12 +5,14 @@ import torchvision.transforms
 import einops
 from typing import List
 
+from huggingface_hub import PyTorchModelHubMixin
+
 from metnet.layers import DownSampler, MetNetPreprocessor, TimeDistributed
 from metnet.layers.ConvLSTM import ConvLSTM
 from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualConv
 
 
-class MetNet2(torch.nn.Module):
+class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
     """MetNet-2 model for weather forecasting"""
 
     def __init__(
