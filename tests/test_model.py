@@ -27,8 +27,10 @@ def test_metnet_creation():
     )
     assert not torch.isnan(out).any(), "Output included NaNs"
 
+
 def test_load_metnet_hf():
     model = MetNet.from_pretrained("openclimatefix/metnet")
+
 
 def test_load_metnet2_hf():
     model = MetNet2.from_pretrained("opencliamtefix/metnet")
