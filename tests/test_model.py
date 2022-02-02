@@ -33,7 +33,7 @@ def test_load_metnet_hf():
 
 
 def test_load_metnet2_hf():
-    model = MetNet2.from_pretrained("opencliamtefix/metnet-2")
+    model = MetNet2.from_pretrained("openclimatefix/metnet-2")
 
 
 def test_metnet2_creation():
