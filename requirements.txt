@@ -4,5 +4,4 @@ torchvision~=0.10.0
 antialiased_cnns
 axial_attention
 pytorch_msssim
-torch
 huggingface_hub
