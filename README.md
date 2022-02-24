@@ -1,3 +1,8 @@
+Pytorch lightning:
+
+Swedish dataset (the ugly and small one, I might publish the nice and big one too at some point):
+https://we.tl/t-OfkV7ZnGWC
+
 # MetNet and MetNet-2
 
 PyTorch Implementation of Google Research's MetNet for short term weather forecasting (https://arxiv.org/abs/2003.12140), inspired from https://github.com/tcapelle/metnet_pytorch/tree/master/metnet_pytorch
