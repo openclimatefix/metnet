@@ -56,7 +56,10 @@ model = MetNet(
         )
 # MetNet expects original HxW to be 4x the input size
 x = torch.randn((2, 12, 16, 128, 128))
-out = model(x)
+out = []
+for lead_time in range(24):
+        out.append(model(x, lead_time))
+out = torch.stack(out, dim=1)
 # MetNet creates predictions for the center 1/4th
 y = torch.randn((2, 24, 12, 8, 8))
 F.mse_loss(out, y).backward()
@@ -80,7 +83,10 @@ model = MetNet2(
         )
 # MetNet expects original HxW to be 4x the input size
 x = torch.randn((2, 6, 12, 256, 256))
-out = model(x)
+out = []
+for lead_time in range(8):
+        out.append(model(x, lead_time))
+out = torch.stack(out, dim=1)
 y = torch.rand((2,8,12,64,64))
 F.mse_loss(out, y).backward()
 ```
