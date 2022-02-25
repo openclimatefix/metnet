@@ -9,7 +9,7 @@ from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocesso
 class MetNet(torch.nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
-        image_encoder: str = "downsampler",
+        image_encoder: str = "downsampler",  # 4 CNN layers
         input_channels: int = 12,
         sat_channels: int = 12,
         input_size: int = 256,
@@ -42,15 +42,15 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
         self.output_channels = output_channels
-
+        """
         self.preprocessor = MetNetPreprocessor(
             sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
         )
         # Update number of input_channels with output from MetNetPreprocessor
         new_channels = sat_channels * 4  # Space2Depth
         new_channels *= 2  # Concatenate two of them together
-        input_channels = input_channels - sat_channels + new_channels
-        self.drop = nn.Dropout(temporal_dropout)
+        input_channels = input_channels - sat_channels + new_channels"""
+        # self.drop = nn.Dropout(temporal_dropout)
         if image_encoder in ["downsampler", "default"]:
             image_encoder = DownSampler(input_channels + forecast_steps)
         else:
@@ -70,19 +70,26 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
 
     def encode_timestep(self, x, fstep=1):
-
+        print("\n shape before preprocess: ", x.shape)
         # Preprocess Tensor
-        x = self.preprocessor(x)
-
+        # x = self.preprocessor(x)
+        print("\n shape after preprocess: ", x.shape)
         # Condition Time
+
         x = self.ct(x, fstep)
+        print("\n shape after ct: ", x.shape)
 
         ##CNN
         x = self.image_encoder(x)
+        print("\n shape after image_encoder: ", x.shape)
 
         # Temporal Encoder
-        _, state = self.temporal_enc(self.drop(x))
-        return self.temporal_agg(state)
+        # _, state = self.temporal_enc(self.drop(x))
+        _, state = self.temporal_enc(x)
+        print("\n shape after temp enc: ", state.shape)
+        dummy = self.temporal_agg(state)
+        print("\n shape after temporal_agg: ", dummy.shape)
+        return dummy
 
     def forward(self, imgs):
         """It takes a rank 5 tensor

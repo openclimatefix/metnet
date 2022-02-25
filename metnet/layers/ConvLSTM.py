@@ -16,7 +16,7 @@ class ConvLSTMCell(nn.Module):
         hidden_dim: int,
         kernel_size: int,
         bias=True,
-        activation=F.tanh,
+        activation=torch.tanh,
         batchnorm=False,
     ):
         """
@@ -69,13 +69,13 @@ class ConvLSTMCell(nn.Module):
 
         cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.hidden_dim, dim=1)
 
-        i = F.sigmoid(cc_i)
-        f = F.sigmoid(cc_f)
+        i = torch.sigmoid(cc_i)
+        f = torch.sigmoid(cc_f)
 
         g = self.activation(cc_g)
         c_cur = f * c_prev + i * g
 
-        o = F.sigmoid(cc_o)
+        o = torch.sigmoid(cc_o)
 
         h_cur = o * self.activation(c_cur)
 
@@ -115,7 +115,7 @@ class ConvLSTM(nn.Module):
         kernel_size: int,
         num_layers: int,
         bias=True,
-        activation=F.tanh,
+        activation=torch.tanh,
         batchnorm=False,
     ):
         """
