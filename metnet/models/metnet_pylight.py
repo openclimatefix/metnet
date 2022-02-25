@@ -5,12 +5,10 @@ from huggingface_hub import PyTorchModelHubMixin
 import pytorch_lightning as pl
 import torch.nn.functional as F
 from torch import optim
-from data_prep import metnet_dataloader
-from data_prep.prepare_data_MetNet import load_data
+from data_prep import metnet_dataloader, prepare_data_MetNet
 from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
-from metnet.layers.ConditionTime import condition_time
 from torch.utils.data import DataLoader, random_split
-from random import shuffle
+import numpy as np
 import math
 
 class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
@@ -47,12 +45,12 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         num_layers = self.config["num_layers"]
         num_att_layers = self.config["num_att_layers"]
         output_channels = self.config["output_channels"]
-        self.n_samples = n_samples
-        self.file_name = file_name
 
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
         self.output_channels = output_channels
+        self.n_samples = n_samples
+        self.file_name = file_name
         '''
         self.preprocessor = MetNetPreprocessor(
             sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
@@ -67,7 +65,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         else:
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
         self.image_encoder = TimeDistributed(image_encoder)
-        #self.ct = ConditionTime(forecast_steps)
+        self.ct = ConditionTime(forecast_steps)
         self.temporal_enc = TemporalEncoder(
             image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
         )
@@ -88,7 +86,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         #print("\n shape after preprocess: ", x.shape)
         # Condition Time
 
-        #x = self.ct(x, fstep)
+        x = self.ct(x, fstep)
         x = x.double()
 
         #print("\n shape after ct: ", x.shape)
@@ -99,38 +97,49 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
 
         # Temporal Encoder
         #_, state = self.temporal_enc(self.drop(x))
-        _, x = self.temporal_enc(x)
+        _, state = self.temporal_enc(x)
         #print("\n shape after temp enc: ", state.shape)
 
-        x = self.temporal_agg(x)
+        agg = self.temporal_agg(state)
         #print("\n shape after temporal_agg: ", agg.shape)
-        return x
+        return agg
 
-    def forward(self, imgs):
+    def forward(self, imgs,lead_time):
         """It takes a rank 5 tensor
         - imgs [bs, seq_len, channels, h, w]
+        - lead_time #random int between 0,self.forecast_steps
         """
 
         # Compute all timesteps, probably can be parallelized
         res = []
-        for i in range(self.forecast_steps):
-            x_i = self.encode_timestep(imgs, i)
 
-            out = self.head(x_i)
-            res.append(out)
+        x_i = self.encode_timestep(imgs, lead_time)
+
+        out = self.head(x_i)
+        res.append(out)
         res = torch.stack(res, dim=1)
         return res
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x.float())
-        loss = F.mse_loss(y_hat, y)
+
+
+        lead_time = np.random.randint(0,self.forecast_steps)
+
+        y_hat = self(x.float(),lead_time)
+        loss = F.mse_loss(y_hat, y[:,lead_time])
         pbar = {"training_loss": loss}
         return {"loss": loss, "progress_bar": pbar}
 
     def validation_step(self, batch, batch_idx):
-        results = self.training_step(batch, batch_idx)
-        return results
+        x, y = batch
+        lead_times = list(range(self.forecast_steps))
+        loss = 0
+        for lead_time in lead_times:
+            y_hat = self(x.float(),lead_time)
+            loss += F.mse_loss(y_hat, y[:,lead_time])
+
+        return {"loss": loss}
 
     def validation_epoch_end(self, val_step_outputs):
         avg_val_loss = torch.tensor([x["loss"] for x in val_step_outputs]).mean()
@@ -138,97 +147,23 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
 
         return {"val_loss":avg_val_loss, "progress_bar":pbar}
 
-
     def configure_optimizers(self):
         optimizer = optim.SGD(self.parameters(),lr=1e-2)
         return optimizer
 
-
     def setup(self, stage = None):
-
-        X,Y,X_dates,Y_dates = load_data(self.file_name, N = self.n_samples, lead_times = self.forecast_steps)
-        X = torch.from_numpy(X)
-        Y = torch.from_numpy(Y)
-        loaded_samples = X.shape[0]
-        split_list = list(range(loaded_samples))
-        shuffle(split_list)
-        split_idx = int(loaded_samples*0.7)
-
-        idx_training = split_list[:split_idx]
-        idx_val = split_list[split_idx:]
-
-        X_train = []
-        Y_train = []
-        first = True
-
-        for index in idx_training:
-            print(index)
-            for lead in range(self.forecast_steps):
-                x, y  = X[index], Y[index]
-
-                seq_len, ch, h, w = x.shape
-                ct = condition_time(x, lead, (h, w), seq_len=self.forecast_steps).repeat(seq_len, 1, 1, 1)
-                x = torch.cat([x, ct], dim=1) #HARDCODED
-                y = y[lead]
-                x = torch.unsqueeze(x,dim = 0)
-                y = torch.unsqueeze(y,dim = 0)
-                if first:
-
-                    X_train = x
-                    Y_train = y
-                    first = False
-                else:
-
-                    X_train = torch.cat((X_train,x), 0)
-                    Y_train = torch.cat((Y_train,y), 0)
-
-
-
-
-        X_val = []
-        Y_val = []
-        first = True
-
-        for index in idx_val:
-            for lead in range(self.forecast_steps):
-                x, y  = X[index], Y[index]
-
-                seq_len, ch, h, w = x.shape
-                ct = condition_time(x, lead, (h, w), seq_len=self.forecast_steps).repeat(seq_len, 1, 1, 1)
-                x = torch.cat([x, ct], dim=1) #HARDCODED
-                y = y[lead]
-                x = torch.unsqueeze(x,dim = 0)
-                y = torch.unsqueeze(y,dim = 0)
-                if first:
-                    X_val = x
-                    Y_val = y
-                    first = False
-                else:
-
-                    X_val = torch.cat((X_val,x), 0)
-                    Y_val = torch.cat((Y_val,y), 0)
-
-        print("Train X shape: ", X_train.shape)
-        print("Train Y shape: ", Y_train.shape)
-        print("Validation X shape: ", X_val.shape)
-        print("Validation Y shape: ", Y_val.shape)
-        input()
-
-        self.train_dataset = metnet_dataloader.MetNetDataset(X_train, Y_train)
-        self.val_dataset = metnet_dataloader.MetNetDataset(X_val, Y_val)
-
-
-
+        data = metnet_dataloader.MetNetDataset(self.file_name, N = self.n_samples, lead_times = self.forecast_steps)
+        nsamples = len(data)
+        split_list = [math.floor(nsamples*0.7),math.floor(nsamples*0.3)]
+        split_list[0] += nsamples-sum(split_list)
+        self.train_data, self.val_data = random_split(data, split_list)
     def train_dataloader(self):
 
-        train_loader = DataLoader(dataset=self.train_dataset,batch_size=4, shuffle = True)
 
-        #val_loader = DataLoader(dataset=val,batch_size=4)
-        #test_loader = DataLoader(dataset=test,batch_size=4)
+        train_loader = DataLoader(dataset=self.train_data,batch_size=4)
         return train_loader
-
     def val_dataloader(self):
-        val_loader = DataLoader(self.val_dataset)
+        val_loader = DataLoader(self.val_data)
         return val_loader
 
 

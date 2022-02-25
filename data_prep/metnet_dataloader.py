@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 class MetNetDataset(Dataset):
-    def __init__(self,X,Y):
+    def __init__(self,file_name,N, lead_times = 60):
         """
         Input:
         file_name: path to hdf5-file.
@@ -15,14 +15,13 @@ class MetNetDataset(Dataset):
         X: numpy array shape (None, time, channels, width, height),
         Y: numpy array shape (None, lead_times, channels, width, height)
         """
+        X,Y,X_dates,Y_dates = load_data(file_name, N = N, lead_times = lead_times)
 
 
-
-        self.x = X
-        self.y = Y
+        self.x = torch.from_numpy(X)
+        self.y = torch.from_numpy(Y)
 
         self.n_samples=X.shape[0]
-
     def __getitem__(self, index):
         # allows indexing dataset[0]
         return self.x[index], self.y[index]

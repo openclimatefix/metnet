@@ -8,9 +8,19 @@ import sys, os
 from datetime import datetime, timedelta,date
 
 '''
-Output: 5D tensor of shape (N_samples, time_steps, channels, width, height) = (None, 7, 75, 112, 112)
+Output: 3D tensor of shape (N,128,128,240+46):
 
 '''
+
+#from grid_with_projection import GridWithProjection
+def h5_writer(directory,data,dates):
+    with h5.File(f'network_data.h5', 'w') as target:
+        for date in dates:
+            target.create_dataset(target_name,data = array,compression="gzip")
+
+def do_with_items(name):
+    return name
+
 
 
 def space_to_depth(x, block_size):
@@ -318,13 +328,11 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
 
 
 
-    gain = 0.4
-    offset = -30
-    data = data*gain + offset
+
     maxx = np.max(data)
     print("\nMAX (should be 255): ", maxx)
     data = np.log(data+0.01)/4
-    data = np.nan_to_num(data) #there are negative values in the np.log
+    data = np.nan_to_num(data)
 
     print(f"\nScaling data with log(x+0.01)/4, replace NaN with 0 and apply tanh(x) and convert to data type: {data.dtype}, nbytes: {data.nbytes}, size: {data.size}")
 
