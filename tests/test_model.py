@@ -91,7 +91,7 @@ def test_metnet2_creation():
 
 def test_metnet2_backward():
     model = MetNet2(
-        forecast_steps=8,
+        forecast_steps=4,
         input_size=64,
         num_input_timesteps=6,
         upsampler_channels=128,
@@ -102,13 +102,13 @@ def test_metnet2_backward():
     # MetNet expects original HxW to be 4x the input size
     x = torch.randn((2, 6, 12, 256, 256))
     out = []
-    for lead_time in range(8):
+    for lead_time in range(4):
         out.append(model(x,lead_time))
     out = torch.stack(out, dim=1)
     # MetNet creates predictions for the center 1/4th
     assert out.size() == (
         2,
-        8,
+        4,
         12,
         64,
         64,
