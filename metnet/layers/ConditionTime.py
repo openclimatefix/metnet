@@ -7,7 +7,7 @@ def condition_time(x, i=0, size=(12, 16), seq_len=15):
     assert i < seq_len
     times = (torch.eye(seq_len, dtype=x.dtype, device=x.device)[i]).unsqueeze(-1).unsqueeze(-1)
     ones = torch.ones(1, *size, dtype=x.dtype, device=x.device)
-    #print((times*ones).shape)
+    # print((times*ones).shape)
     return times * ones
 
 
