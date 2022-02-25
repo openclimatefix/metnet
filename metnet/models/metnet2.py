@@ -202,7 +202,7 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         # Last layers are a Conv 1x1 with 4096 channels then softmax
         self.head = nn.Conv2d(upsampler_channels, output_channels, kernel_size=(1, 1))
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, lead_time: int = 0):
         """
         Compute for all forecast steps
 
@@ -214,54 +214,50 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         """
 
         # Compute all timesteps, probably can be parallelized
-        out = []
         x = self.image_encoder(x)
-        for i in range(self.forecast_steps):
-            # Compute scale and bias
-            scale_and_bias = self.ct(x, i)
-            block_num = 0
+        # Compute scale and bias
+        scale_and_bias = self.ct(x, lead_time)
+        block_num = 0
 
-            # ConvLSTM
-            res, _ = self.conv_lstm(x)
-            # Select last state only
-            res = res[:, -1]
+        # ConvLSTM
+        res, _ = self.conv_lstm(x)
+        # Select last state only
+        res = res[:, -1]
 
-            # Context Stack
-            for layer in self.context_block_one:
-                scale, bias = scale_and_bias[:, block_num]
-                res = layer(res, scale, bias)
-                block_num += 1
-            for layer in self.context_blocks:
-                scale, bias = scale_and_bias[:, block_num]
-                res = layer(res, scale, bias)
-                block_num += 1
+        # Context Stack
+        for layer in self.context_block_one:
+            scale, bias = scale_and_bias[:, block_num]
+            res = layer(res, scale, bias)
+            block_num += 1
+        for layer in self.context_blocks:
+            scale, bias = scale_and_bias[:, block_num]
+            res = layer(res, scale, bias)
+            block_num += 1
 
-            # Get Center Crop
-            res = self.center_crop(res)
+        # Get Center Crop
+        res = self.center_crop(res)
 
-            # Upsample
-            if self.upsample_method == "interp":
-                res = self.upsample(res)
-                res = self.upsampler_changer(res)
-            else:
-                for layer in self.upsample:
-                    scale, bias = scale_and_bias[:, block_num]
-                    res = layer(res, scale, bias)
-                    block_num += 1
-
-            # Shallow network
-            for layer in self.residual_block_three:
+        # Upsample
+        if self.upsample_method == "interp":
+            res = self.upsample(res)
+            res = self.upsampler_changer(res)
+        else:
+            for layer in self.upsample:
                 scale, bias = scale_and_bias[:, block_num]
                 res = layer(res, scale, bias)
                 block_num += 1
 
-            # Return 1x1 Conv
-            res = self.head(res)
-            out.append(res)
-        out = torch.stack(out, dim=1)
+        # Shallow network
+        for layer in self.residual_block_three:
+            scale, bias = scale_and_bias[:, block_num]
+            res = layer(res, scale, bias)
+            block_num += 1
+
+        # Return 1x1 Conv
+        res = self.head(res)
 
         # Softmax for rain forecasting
-        return out
+        return res
 
 
 class ConditionWithTimeMetNet2(nn.Module):

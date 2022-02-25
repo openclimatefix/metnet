@@ -84,18 +84,12 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         _, state = self.temporal_enc(self.drop(x))
         return self.temporal_agg(state)
 
-    def forward(self, imgs):
+    def forward(self, imgs: torch.Tensor, lead_time: int = 0) -> torch.Tensor:
         """It takes a rank 5 tensor
         - imgs [bs, seq_len, channels, h, w]
         """
-
-        # Compute all timesteps, probably can be parallelized
-        res = []
-        for i in range(self.forecast_steps):
-            x_i = self.encode_timestep(imgs, i)
-            out = self.head(x_i)
-            res.append(out)
-        res = torch.stack(res, dim=1)
+        x_i = self.encode_timestep(imgs, lead_time)
+        res = self.head(x_i)
         return res
 
 

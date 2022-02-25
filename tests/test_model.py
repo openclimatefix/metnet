@@ -21,7 +21,6 @@ def test_metnet_creation():
     # MetNet creates predictions for the center 1/4th
     assert out.size() == (
         2,
-        24,
         12,
         16,
         16,
@@ -40,7 +39,10 @@ def test_metnet_backwards():
     )
     # MetNet expects original HxW to be 4x the input size
     x = torch.randn((2, 12, 16, 128, 128))
-    out = model(x)
+    out = []
+    for lead_time in range(24):
+        out.append(model(x, lead_time))
+    out = torch.stack(out, dim=1)
     # MetNet creates predictions for the center 1/4th
     assert out.size() == (
         2,
@@ -80,7 +82,6 @@ def test_metnet2_creation():
     # MetNet creates predictions for the center 1/4th
     assert out.size() == (
         2,
-        8,
         12,
         128,
         128,
@@ -90,7 +91,7 @@ def test_metnet2_creation():
 
 def test_metnet2_backward():
     model = MetNet2(
-        forecast_steps=8,
+        forecast_steps=4,
         input_size=64,
         num_input_timesteps=6,
         upsampler_channels=128,
@@ -100,15 +101,18 @@ def test_metnet2_backward():
     )
     # MetNet expects original HxW to be 4x the input size
     x = torch.randn((2, 6, 12, 256, 256))
-    out = model(x)
+    out = []
+    for lead_time in range(4):
+        out.append(model(x, lead_time))
+    out = torch.stack(out, dim=1)
     # MetNet creates predictions for the center 1/4th
     assert out.size() == (
         2,
-        8,
+        4,
         12,
         64,
         64,
     )
-    y = torch.rand((2, 8, 12, 64, 64))
+    y = torch.rand((2, 4, 12, 64, 64))
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
