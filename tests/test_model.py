@@ -41,7 +41,7 @@ def test_metnet_backwards():
     x = torch.randn((2, 12, 16, 128, 128))
     out = []
     for lead_time in range(24):
-        out.append(model(x,lead_time))
+        out.append(model(x, lead_time))
     out = torch.stack(out, dim=1)
     # MetNet creates predictions for the center 1/4th
     assert out.size() == (
@@ -103,7 +103,7 @@ def test_metnet2_backward():
     x = torch.randn((2, 6, 12, 256, 256))
     out = []
     for lead_time in range(4):
-        out.append(model(x,lead_time))
+        out.append(model(x, lead_time))
     out = torch.stack(out, dim=1)
     # MetNet creates predictions for the center 1/4th
     assert out.size() == (
