@@ -28,6 +28,7 @@ def test_metnet_creation():
     )
     assert not torch.isnan(out).any(), "Output included NaNs"
 
+
 def test_metnet_backwards():
     model = MetNet(
         hidden_dim=32,
@@ -36,7 +37,7 @@ def test_metnet_backwards():
         output_channels=12,
         sat_channels=12,
         input_size=32,
-        )
+    )
     # MetNet expects original HxW to be 4x the input size
     x = torch.randn((2, 12, 16, 128, 128))
     out = model(x)
@@ -47,7 +48,7 @@ def test_metnet_backwards():
         12,
         8,
         8,
-        )
+    )
     y = torch.randn((2, 24, 12, 8, 8))
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
@@ -86,6 +87,7 @@ def test_metnet2_creation():
     )
     assert not torch.isnan(out).any(), "Output included NaNs"
 
+
 def test_metnet2_backward():
     model = MetNet2(
         forecast_steps=8,
@@ -95,7 +97,7 @@ def test_metnet2_backward():
         lstm_channels=32,
         encoder_channels=64,
         center_crop_size=16,
-        )
+    )
     # MetNet expects original HxW to be 4x the input size
     x = torch.randn((2, 6, 12, 256, 256))
     out = model(x)
@@ -106,7 +108,7 @@ def test_metnet2_backward():
         12,
         64,
         64,
-        )
-    y = torch.rand((2,8,12,64,64))
+    )
+    y = torch.rand((2, 8, 12, 64, 64))
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
