@@ -113,6 +113,6 @@ def test_metnet2_backward():
         64,
         64,
     )
-    y = torch.rand((2, 8, 12, 64, 64))
+    y = torch.rand((2, 4, 12, 64, 64))
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
