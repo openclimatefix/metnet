@@ -8,7 +8,7 @@ import sys, os
 from datetime import datetime, timedelta,date
 
 '''
-Output: 3D tensor of shape (N,128,128,240+46):
+Output: 5D tensor of shape (n_samples, time_dim, channels, width, height):
 
 '''
 
@@ -56,10 +56,6 @@ def date_assertion(dates,expected_delta = 5):
 def h5_iterator(h5_file,maxN = 100,spaced = 1):
     """Iterates through the desired datafile and returns index, array and datetime"""
 
-    months = {"01":"January", "02":"February", "03":"March",
-    "04":"April", "05":"May", "06":"June",
-    "07":"July", "08":"August", "09":"September",
-    "10":"October", "11":"November", "12":"December"}
     with h5.File(h5_file,"r") as f:
 
         keys = list(f["data/pn157"].keys())
@@ -188,11 +184,7 @@ def datetime_encoder(data,dates,plotter = False):
     except AssertionError:
         print("Datetime dimensions seem wrong!")
         raise
-    '''for i,(day,min) in enumerate(zip(year_days,day_minutes)):
-        date_array[i,:,:,0] = np.sin(2*np.pi*day/365,dtype =data_type)
-        date_array[i,:,:,1] = np.cos(2*np.pi*day/365,dtype =data_type)
-        date_array[i,:,:,2] = np.sin(2*np.pi*min/(60*24),dtype =data_type)
-        date_array[i,:,:,3] = np.cos(2*np.pi*min/(60*24),dtype =data_type)'''
+
     if plotter:
         fig,ax = plt.subplots(1,2)
         ax[0].scatter(date_array[:,0,0,0],date_array[:,0,0,1])
@@ -327,12 +319,14 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
         print(f"\nConcatenating data and centercrop to dimenison: {data.shape} with shape [:,:,:,downsampled + centercrop]")
 
 
-
-
+    GAIN = 0.4
+    OFFSET = -30
+    data = data*GAIN + OFFSET
     maxx = np.max(data)
-    print("\nMAX (should be 255): ", maxx)
+    print("\nMAX DBZ data(should be 72): ", maxx)
     data = np.log(data+0.01)/4
     data = np.nan_to_num(data)
+    data = np.tanh(data)
 
     print(f"\nScaling data with log(x+0.01)/4, replace NaN with 0 and apply tanh(x) and convert to data type: {data.dtype}, nbytes: {data.nbytes}, size: {data.size}")
 

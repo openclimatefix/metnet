@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 from torch import optim
 from data_prep import metnet_dataloader, prepare_data_MetNet
-from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
+from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed, ConvLSTM
 from torch.utils.data import DataLoader, random_split
 import numpy as np
 import math
@@ -170,7 +170,8 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
 class TemporalEncoder(nn.Module):
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
         super().__init__()
-        self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
+        #self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
+        self.rnn = ConvLSTM(in_channels, out_channels, ks, n_layers)
 
     def forward(self, x):
         x, h = self.rnn(x)
