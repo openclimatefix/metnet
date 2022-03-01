@@ -12,14 +12,6 @@ Output: 5D tensor of shape (n_samples, time_dim, channels, width, height):
 
 '''
 
-#from grid_with_projection import GridWithProjection
-def h5_writer(directory,data,dates):
-    with h5.File(f'network_data.h5', 'w') as target:
-        for date in dates:
-            target.create_dataset(target_name,data = array,compression="gzip")
-
-def do_with_items(name):
-    return name
 
 
 
@@ -36,12 +28,13 @@ def space_to_depth(x, block_size):
 def date_assertion(dates,expected_delta = 5):
     for date1,date2 in zip(dates[0:-1],dates[1:]):
         list1 = date1.split("_")
-        list1 = list1[0:3] + list1[3].split(":")
-        #print(date1, date2)
+        #print(list1)
+        
         y1, m1, d1, hour1, minute1 =  [int(a) for a in list1]
+        
         datetime1 = datetime(y1, m1, d1, hour=hour1, minute=minute1)
         list2 = date2.split("_")
-        list2 = list2[0:3] + list2[3].split(":")
+        
         y2, m2, d2, hour2, minute2  = [int(a) for a in list2]
 
         datetime2 = datetime(y2, m2, d2, hour=hour2, minute=minute2)
@@ -58,20 +51,20 @@ def h5_iterator(h5_file,maxN = 100,spaced = 1):
 
     with h5.File(h5_file,"r") as f:
 
-        keys = list(f["data/pn157"].keys())
+        keys = list(f.keys())
         for i,name in enumerate(keys):
 
             if i%spaced!=0:
                 continue
             j = i//spaced
-            obj = f["data/pn157/"+name]
+            obj = f[name]
 
             #print(name, obj)
             if maxN:
                 if i//spaced>=maxN: break
             #print(name)
-            typ, date = name.split("-")
-            y, m, d, t = date.split("_")
+            date = name
+            y, m, d, hh, mm = date.split("_")
             #title = f"Year: {y} month: {months[m]} day: {d} time: {t}"
             array = np.array(obj) #flip array
 
@@ -119,7 +112,6 @@ def temporal_concatenation(data,dates,targets,target_dates,concat = 7, overlap =
             print(f"Warning, dates are not alligned! Skipping: {i}:{i+seq_length}")
             print(temp_dates)
             print(temp_dates_target)
-            input()
             continue
         X.append(temp_input)
         X_dates.append(temp_dates)
@@ -155,7 +147,7 @@ def datetime_encoder(data,dates,plotter = False):
         if (i+1)%1000==0:
             print("Dates loaded for encoding: ",i+1)
         list1 = date_string.split("_")
-        list1 = list1[0:3] + list1[3].split(":")
+        
 
         year,month,day, hour, minute =  [int(a) for a in list1]
         date_object = date(year,month,day)
@@ -239,7 +231,7 @@ def longlatencoding(data):
 
 
 
-def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881-448,881), downsampling_rate = 2, overlap = 0, spaced=3,downsample = True, spacedepth =True,centercrop=True,box=2,printer=True):
+def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881-448,881), downsampling_rate = 2, overlap = 0, spaced=3,downsample = True, spacedepth =True,centercrop=True,box=2,printer=True, rain_step = 2):
     #15 minutes between datapoints is default --> spaced = 3
     snapshots = []
     dates = []
@@ -253,7 +245,7 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
         sys.stdout = open(os.devnull, 'w')
     for i, array,date in h5_iterator(h5_path, N):
         if (i+1)%1000==0:
-            print("Loaded samples: ",i+1)
+            print("Loaded samples: ",(i+1)//spaced)
 
         if i%spaced==0:
             snapshots.append(array)

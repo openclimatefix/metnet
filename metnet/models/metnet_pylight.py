@@ -15,7 +15,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
     def __init__(
         self,
         image_encoder: str = "downsampler", #4 CNN layers
-        file_name: str = "combination_all_pn157.h5",
+        file_name: str = "data3_500k.h5",
         input_channels: int = 12,
         n_samples: int = 1000,
         sat_channels: int = 12,
@@ -25,8 +25,10 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         kernel_size: int = 3,
         num_layers: int = 1,
         num_att_layers: int = 4,
-        forecast_steps: int = 48,
+        forecast_steps: int = 240,
         temporal_dropout: float = 0.2,
+        num_workers: int = 32,
+        rain_step: int = 2, #in millimeters
         **kwargs,
     ):
         super(MetNetPylight, self).__init__()
@@ -51,6 +53,8 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         self.output_channels = output_channels
         self.n_samples = n_samples
         self.file_name = file_name
+        self.workers = num_workers
+        self.rain_step = rain_step
         '''
         self.preprocessor = MetNetPreprocessor(
             sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
@@ -78,6 +82,8 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
 
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
         self.double()
+        
+        self.save_hyperparameters()
 
     def encode_timestep(self, x, fstep=1):
         #print("\n shape before preprocess: ", x.shape)
@@ -111,14 +117,15 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         """
 
         # Compute all timesteps, probably can be parallelized
-        res = []
+        
 
         x_i = self.encode_timestep(imgs, lead_time)
 
         out = self.head(x_i)
-        res.append(out)
-        res = torch.stack(res, dim=1)
-        return res
+        
+        
+        
+        return out
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -128,8 +135,8 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
 
         y_hat = self(x.float(),lead_time)
         loss = F.mse_loss(y_hat, y[:,lead_time])
-        pbar = {"training_loss": loss}
-        return {"loss": loss, "progress_bar": pbar}
+        self.log("train/loss", loss, on_epoch=True)
+        return {"loss": loss}
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -142,10 +149,15 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         return {"loss": loss}
 
     def validation_epoch_end(self, val_step_outputs):
-        avg_val_loss = torch.tensor([x["loss"] for x in val_step_outputs]).mean()
-        pbar = {"avg_val_loss":avg_val_loss}
+        outs = [x["loss"] for x in val_step_outputs]
+        print(outs)
+        
+        avg_val_loss = torch.tensor(outs).mean()
+        flattened = torch.flatten(torch.cat(outs))
+        self.logger.experiment.log({"validation/losses": wandb.Histogram(flattened.to("cpu")),"global step": self.global_step})
+        
 
-        return {"val_loss":avg_val_loss, "progress_bar":pbar}
+        return {"val_loss":avg_val_loss}
 
     def configure_optimizers(self):
         optimizer = optim.SGD(self.parameters(),lr=1e-2)
@@ -160,22 +172,48 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
     def train_dataloader(self):
 
 
-        train_loader = DataLoader(dataset=self.train_data,batch_size=4)
+        train_loader = DataLoader(dataset=self.train_data,batch_size=10, num_workers =  self.workers)
         return train_loader
     def val_dataloader(self):
-        val_loader = DataLoader(self.val_data)
+        val_loader = DataLoader(self.val_data, num_workers =  self.workers)
         return val_loader
-
+    def threshhold_loss(self, pred, target):
+        thresh_bin = thresh//self.rain_step 
+        
 
 class TemporalEncoder(nn.Module):
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
         super().__init__()
-        #self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
-        self.rnn = ConvLSTM(in_channels, out_channels, ks, n_layers)
+        self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
+        #self.rnn = ConvLSTM(in_channels, out_channels, ks, n_layers)
 
     def forward(self, x):
         x, h = self.rnn(x)
         return (x, h[-1])
+        
+def rain_transform(x):
+    rain = (10**(x / 10.0) / 200.0)**(1.0 / 1.6)
+    return rain
+    
+class RainfieldCallback(pl.Callback):
+    def __init__(self, val_samples, num_samples=1):
+        super().__init__()
+        self.val_imgs, self.val_Y = val_samples
+        self.val_imgs = self.val_imgs[:num_samples]
+        self.val_Y = self.val_Y[:num_samples]
+        
+          
+    def on_validation_epoch_end(self, trainer, pl_module, lead_times = 60):
+        val_imgs = self.val_imgs.to(device=pl_module.device)
+        for lead_time in range(lead_times):
+            y_hat = pl_module(val_imgs)
+            preds = torch.argmax(logits, 1)
+
+        trainer.logger.experiment.log({
+            "examples": [wandb.Image(x, caption=f"Pred:{pred}, Label:{y}") 
+                            for x, pred, y in zip(val_imgs, preds, self.val_labels)],
+            "global_step": trainer.global_step
+            })
 
 '''
 def feat2image(x, target_size=(128, 128)):
