@@ -4,12 +4,14 @@ from axial_attention import AxialAttention
 from huggingface_hub import PyTorchModelHubMixin
 import pytorch_lightning as pl
 import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss
 from torch import optim
 from data_prep import metnet_dataloader, prepare_data_MetNet
 from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed, ConvLSTM
 from torch.utils.data import DataLoader, random_split
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 
 class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
     def __init__(
@@ -20,15 +22,17 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         n_samples: int = 1000,
         sat_channels: int = 12,
         input_size: int = 256,
-        output_channels: int = 12,
+        output_channels: int = 512,
         hidden_dim: int = 384,
         kernel_size: int = 3,
         num_layers: int = 1,
-        num_att_layers: int = 4,
+        num_att_layers: int = 1,
         forecast_steps: int = 240,
         temporal_dropout: float = 0.2,
         num_workers: int = 32,
-        rain_step: int = 2, #in millimeters
+        batch_size: int = 8,
+        rain_step: int = 0.2, #in millimeters
+        learning_rate: int = 1e-2, 
         **kwargs,
     ):
         super(MetNetPylight, self).__init__()
@@ -55,6 +59,8 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         self.file_name = file_name
         self.workers = num_workers
         self.rain_step = rain_step
+        self.learning_rate = learning_rate        
+        self.batch_size = batch_size
         '''
         self.preprocessor = MetNetPreprocessor(
             sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
@@ -63,7 +69,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         new_channels = sat_channels * 4  # Space2Depth
         new_channels *= 2  # Concatenate two of them together
         input_channels = input_channels - sat_channels + new_channels'''
-        #self.drop = nn.Dropout(temporal_dropout)
+        self.drop = nn.Dropout(temporal_dropout)
         if image_encoder in ["downsampler", "default"]:
             image_encoder = DownSampler(input_channels + forecast_steps)
         else:
@@ -91,7 +97,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         #x = self.preprocessor(x)
         #print("\n shape after preprocess: ", x.shape)
         # Condition Time
-
+        
         x = self.ct(x, fstep)
         x = x.double()
 
@@ -118,68 +124,68 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
 
         # Compute all timesteps, probably can be parallelized
         
+        #plot_channels(imgs)
+        x = self.encode_timestep(imgs, lead_time)
+        #plot_channels(x)
 
-        x_i = self.encode_timestep(imgs, lead_time)
-
-        out = self.head(x_i)
+        out = self.head(x)
         
         
         
-        return out
+        return torch.softmax(out,dim=1)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
 
 
         lead_time = np.random.randint(0,self.forecast_steps)
-
+        L = CrossEntropyLoss()
         y_hat = self(x.float(),lead_time)
-        loss = F.mse_loss(y_hat, y[:,lead_time])
+        loss = L(y_hat, y[:,lead_time])
         self.log("train/loss", loss, on_epoch=True)
         return {"loss": loss}
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         lead_times = list(range(self.forecast_steps))
+        
         loss = 0
+        L = CrossEntropyLoss()
         for lead_time in lead_times:
             y_hat = self(x.float(),lead_time)
-            loss += F.mse_loss(y_hat, y[:,lead_time])
-
+            
+            loss += L(y_hat, y[:,lead_time])
+        self.log("validation/loss_epoch", loss, on_step=False, on_epoch=True)
+        if self.global_step%100 == 0:
+            plot_category(y[0,0],y_hat[0],self.output_channels,self.rain_step,self.device)
         return {"loss": loss}
 
     def validation_epoch_end(self, val_step_outputs):
-        outs = [x["loss"] for x in val_step_outputs]
-        print(outs)
-        
+        outs = tuple([x["loss"] for x in val_step_outputs])
         avg_val_loss = torch.tensor(outs).mean()
-        flattened = torch.flatten(torch.cat(outs))
-        self.logger.experiment.log({"validation/losses": wandb.Histogram(flattened.to("cpu")),"global step": self.global_step})
-        
-
         return {"val_loss":avg_val_loss}
 
     def configure_optimizers(self):
-        optimizer = optim.SGD(self.parameters(),lr=1e-2)
+        optimizer = optim.SGD(self.parameters(),lr=self.learning_rate)
         return optimizer
 
     def setup(self, stage = None):
-        data = metnet_dataloader.MetNetDataset(self.file_name, N = self.n_samples, lead_times = self.forecast_steps)
+        data = metnet_dataloader.MetNetDataset(self.file_name, N = self.n_samples, lead_times = self.forecast_steps, rain_step = self.rain_step, n_bins = self.output_channels)
         nsamples = len(data)
         split_list = [math.floor(nsamples*0.7),math.floor(nsamples*0.3)]
         split_list[0] += nsamples-sum(split_list)
         self.train_data, self.val_data = random_split(data, split_list)
+        
     def train_dataloader(self):
-
-
-        train_loader = DataLoader(dataset=self.train_data,batch_size=10, num_workers =  self.workers)
+        train_loader = DataLoader(dataset=self.train_data,batch_size=self.batch_size, num_workers =  self.workers)
         return train_loader
     def val_dataloader(self):
-        val_loader = DataLoader(self.val_data, num_workers =  self.workers)
+        val_loader = DataLoader(self.val_data,batch_size=self.batch_size, num_workers =  self.workers)
         return val_loader
-    def threshhold_loss(self, pred, target):
-        thresh_bin = thresh//self.rain_step 
         
+    def thresh_F1(self, pred, target,thresh = 0.2):
+        thresh_bin = thresh//self.rain_step 
+        norms =  torch.sum(pred, dim=1)
 
 class TemporalEncoder(nn.Module):
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
@@ -194,7 +200,49 @@ class TemporalEncoder(nn.Module):
 def rain_transform(x):
     rain = (10**(x / 10.0) / 200.0)**(1.0 / 1.6)
     return rain
+   
+def plot_category(y,y_hat,bins,increment,title,thresh_bin = 2):
+    #accepts y.shape = (bins,w,h)
+    print(title, y.shape)
+    print(title, y_hat.shape)
+    _, w, h = y.shape
+    a1 = torch.empty((w,h))
+    a2 = torch.empty((w,h))
+    part_1_a = torch.sum(y[0:thresh_bin], dim = 0)
+    part_1_b = torch.sum(y[thresh_bin:], dim = 0)
+    part_2_a = torch.sum(y_hat[0:thresh_bin], dim = 0)
+    part_2_b = torch.sum(y_hat[thresh_bin:], dim = 0)
+    idx_1_below = torch.where(part_1_a==1)
+    idx_1_above = torch.where(part_1_b==1)
+    idx_2_below = torch.where(part_2_a<=part_2_b)
+    idx_2_above = torch.where(part_2_a>part_2_b)
+    a1[idx_1_below] = 0
+    a1[idx_1_above] = 1
+    a2[idx_2_below] = 0
+    a2[idx_2_above] = 1
+    y = a1.cpu().detach().numpy()
+    y_hat = a2.cpu().detach().numpy()
     
+    fig, ax = plt.subplots(1,2)
+    fig.suptitle(str(title))
+    ax[0].imshow(y)
+    ax[1].imshow(y_hat)
+    plt.show()
+       
+def plot_channels(x):
+    print("CHANNEL SHAPE: ", x.shape)
+    if len(x.shape)==5:
+        for channel in range(x.shape[2]):
+            
+            plt.imshow(x[0,0,channel,:,:].cpu().detach().numpy())
+            plt.title(str(channel))
+            plt.show()
+    else:
+        for channel in range(x.shape[1]):
+            
+            plt.imshow(x[0,channel,:,:].cpu().detach().numpy())
+            plt.title(str(channel))
+            plt.show()
 class RainfieldCallback(pl.Callback):
     def __init__(self, val_samples, num_samples=1):
         super().__init__()

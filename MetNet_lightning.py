@@ -5,23 +5,26 @@ from data_prep.prepare_data_MetNet import load_data
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import wandb
+from pytorch_lightning.callbacks import DeviceStatsMonitor
 
 wandb.login()
 
 model = MetNetPylight(
-        hidden_dim=256, #384 original paper
-        forecast_steps=60, #240 original paper
+        hidden_dim=8, #384 original paper
+        forecast_steps=1, #240 original paper
         input_channels=15, #46 original paper, hour/day/month = 3, lat/long/elevation = 3, GOES+MRMS = 40
         output_channels=51, #512
         input_size=112, # 112
-        n_samples = 1000,
+        n_samples = 100,
+        num_workers = 8,
+        batch_size = 1,
+        learning_rate = 10
         )
 #MetNetPylight expects already preprocessed data. Can be change by uncommenting the preprocessing step.
 print(model)
 wandb_logger = WandbLogger(project="lit-wandb")
 
-trainer = pl.Trainer(max_epochs=10, gpus=-1,log_every_n_steps=20, logger = wandb_logger)
+trainer = pl.Trainer(max_epochs=5000, gpus=-1,log_every_n_steps=1, logger = wandb_logger,strategy="ddp_find_unused_parameters_false")
 
-input("train? press enter to continue...")
 trainer.fit(model)
 wandb.finish()

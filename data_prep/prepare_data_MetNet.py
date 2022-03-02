@@ -110,8 +110,8 @@ def temporal_concatenation(data,dates,targets,target_dates,concat = 7, overlap =
             date_assertion(fiver,expected_delta = 5)
         except AssertionError:
             print(f"Warning, dates are not alligned! Skipping: {i}:{i+seq_length}")
-            print(temp_dates)
-            print(temp_dates_target)
+            #print(temp_dates)
+            #print(temp_dates_target)
             continue
         X.append(temp_input)
         X_dates.append(temp_dates)
@@ -231,7 +231,7 @@ def longlatencoding(data):
 
 
 
-def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881-448,881), downsampling_rate = 2, overlap = 0, spaced=3,downsample = True, spacedepth =True,centercrop=True,box=2,printer=True, rain_step = 2):
+def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881-448,881), downsampling_rate = 2, overlap = 0, spaced=3,downsample = True, spacedepth =True,centercrop=True,box=2,printer=True, rain_step = 0.2, n_bins=512):
     #15 minutes between datapoints is default --> spaced = 3
     snapshots = []
     dates = []
@@ -258,7 +258,7 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
     all_data = np.array(all_snapshots)
 
     print("\nDatatype data: ", data.dtype)
-    print("\nInput data shape: ", data.shape)
+    print("\nInput data shape: ", data.shape, " size: ", sys.getsizeof(data))
 
 
     x0,x1,y0,y1 = square
@@ -316,14 +316,22 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
     data = data*GAIN + OFFSET
     maxx = np.max(data)
     print("\nMAX DBZ data(should be 72): ", maxx)
-    data = np.log(data+0.01)/4
-    data = np.nan_to_num(data)
-    data = np.tanh(data)
+    data_new = np.empty(data.shape)
+    runs = data_new.shape[0]//5000
+    for run in range(runs):
+        data_new[run:run+5000] = np.log(data[run:run+5000]+0.01)/4
+        data_new[run:run+5000] = np.nan_to_num(data_new[run:run+5000])
+        data_new[run:run+5000] = np.tanh(data_new[run:run+5000])
+    
+    data_new[runs:] = np.log(data[runs:]+0.01)/4
+    data_new[runs:] = np.nan_to_num(data_new[runs:])
+    data_new[runs:] = np.tanh(data_new[runs:])
+    
 
     print(f"\nScaling data with log(x+0.01)/4, replace NaN with 0 and apply tanh(x) and convert to data type: {data.dtype}, nbytes: {data.nbytes}, size: {data.size}")
 
 
-    data = longlatencoding(data)
+    data = longlatencoding(data_new)
     print(f"\nConcatenating data with long, lat and elevation. New shape: {data.shape}, dtype: {data.dtype}")
 
     data = datetime_encoder(data,dates,plotter=False)
@@ -345,10 +353,10 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
 
         plt.imshow(X[0,0,channel,:,:])
         plt.show()'''
-    Y = Y*0.4 -30
+    Y = Y*GAIN + OFFSET
     print("MINMAX Y AFTER GAIN + OFFSET", np.min(Y), np.max(Y))
 
-    Y = rain_binned(Y)
+    Y = rain_binned(Y, n_bins = n_bins, increment = rain_step)
 
     print(f"\nDone with binning targets into bins, target shape: {Y.shape}")
 
@@ -371,23 +379,32 @@ def rain_binned(Y, n_bins = 51,increment = 2):
 
     rain = (10**(Y / 10.0) / 200.0)**(1.0 / 1.6)
     print("RAIN MINMAX: ", np.min(rain), np.max(rain))
-
+    '''for lead_time in range(leads):
+        plt.imshow(rain[10,lead_time,:,:])
+        plt.show()'''
     rain_bins = np.zeros((n,leads,n_bins,w,h))
+    counter = []
     for i in range(n_bins-1):
         bin_min = i*increment
         bin_max = (i+1)*increment
         rain_bin = np.zeros((n,leads,w,h)) #Y.shape = (None,lead_times, bin_channel, width/4,heigth/4)
         idx = np.where(np.logical_and(rain>=bin_min, rain<bin_max))
-
+        counter.append(len(idx[0]))
         rain_bin[idx] = 1
         #rain_bin = np.expand_dims(rain_bin,axis=2)
 
         rain_bins[:,:,i,:,:] = rain_bin
-
+    
     rain_bin = np.zeros((n,leads,w,h))
     idx = np.where(rain>=n_bins*increment)
     rain_bin[idx] = 1
     rain_bins[:,:,n_bins-1,:,:] = rain_bin
+    counter.append(len(idx))
+    print("RAINBINS: ", rain_bins.size, " counter size: ", sum(counter))
+    
+    print(counter)
+    '''plt.plot(counter)
+    plt.show()'''
 
     return rain_bins
 

@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 class MetNetDataset(Dataset):
-    def __init__(self,file_name,N, lead_times = 60):
+    def __init__(self,file_name,N, lead_times = 60, rain_step = 0.2, n_bins = 512):
         """
         Input:
         file_name: path to hdf5-file.
@@ -15,7 +15,7 @@ class MetNetDataset(Dataset):
         X: numpy array shape (None, time, channels, width, height),
         Y: numpy array shape (None, lead_times, channels, width, height)
         """
-        X,Y,X_dates,Y_dates = load_data(file_name, N = N, lead_times = lead_times)
+        X,Y,X_dates,Y_dates = load_data(file_name, N = N, lead_times = lead_times, rain_step = rain_step, n_bins = n_bins)
 
 
         self.x = torch.from_numpy(X)
