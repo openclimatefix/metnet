@@ -13,7 +13,7 @@ model = MetNetPylight(
         hidden_dim=8, #384 original paper
         forecast_steps=1, #240 original paper
         input_channels=15, #46 original paper, hour/day/month = 3, lat/long/elevation = 3, GOES+MRMS = 40
-        output_channels=51, #512
+        output_channels=6, #512
         input_size=112, # 112
         n_samples = 100,
         num_workers = 8,

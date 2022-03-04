@@ -97,22 +97,28 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         #x = self.preprocessor(x)
         #print("\n shape after preprocess: ", x.shape)
         # Condition Time
-        
+        plot_channels(x, 1, tit_add = "before ct")
         x = self.ct(x, fstep)
+        
         x = x.double()
+        
+        
 
         #print("\n shape after ct: ", x.shape)
 
         ##CNN
         x = self.image_encoder(x)
+        #plot_channels(x, 1, tit_add = "after downsampler")
         #print("\n shape after image_encoder: ", x.shape)
 
         # Temporal Encoder
         #_, state = self.temporal_enc(self.drop(x))
         _, state = self.temporal_enc(x)
+        #plot_channels(x, 1, tit_add = "after temporal_enc")
         #print("\n shape after temp enc: ", state.shape)
 
         agg = self.temporal_agg(state)
+        plot_channels(x, 1, tit_add = "after agg")
         #print("\n shape after temporal_agg: ", agg.shape)
         return agg
 
@@ -123,30 +129,39 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         """
 
         # Compute all timesteps, probably can be parallelized
-        
-        #plot_channels(imgs)
+        print("in forward")
+        #plot_channels(imgs, 2, tit_add = "input")
         x = self.encode_timestep(imgs, lead_time)
-        #plot_channels(x)
-
+        #plot_channels(x, 2, tit_add = "after encode")
+        print("shape before head: ", x.shape)
         out = self.head(x)
+        print("shape after head: ", out.shape)
+        plot_channels(x, 1, tit_add = "after head")
+        out = torch.softmax(out,dim=1)
+        print("shape after softmax: ", out.shape)
+        plot_channels(out, 1, tit_add = "after softmax")
         
-        
-        
-        return torch.softmax(out,dim=1)
+        return out
 
     def training_step(self, batch, batch_idx):
+        
         x, y = batch
-
+        print("training_step len: ", x.shape[0])
 
         lead_time = np.random.randint(0,self.forecast_steps)
         L = CrossEntropyLoss()
         y_hat = self(x.float(),lead_time)
+        for i in range(x.shape[0]):
+            plot_bins(y_hat[i], "y_hat")
+            plot_bins(y[i,0], "y")
         loss = L(y_hat, y[:,lead_time])
         self.log("train/loss", loss, on_epoch=True)
         return {"loss": loss}
 
     def validation_step(self, batch, batch_idx):
+    
         x, y = batch
+        print("validation_step len: ", x.shape[0])
         lead_times = list(range(self.forecast_steps))
         
         loss = 0
@@ -156,7 +171,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
             
             loss += L(y_hat, y[:,lead_time])
         self.log("validation/loss_epoch", loss, on_step=False, on_epoch=True)
-        if self.global_step%100 == 0:
+        if self.global_step%100 == 1:
             plot_category(y[0,0],y_hat[0],self.output_channels,self.rain_step,self.device)
         return {"loss": loss}
 
@@ -228,20 +243,37 @@ def plot_category(y,y_hat,bins,increment,title,thresh_bin = 2):
     ax[0].imshow(y)
     ax[1].imshow(y_hat)
     plt.show()
+
+def plot_bins(y, title=""):
+    N = y.shape[0]
+    side = int(N**0.5)
+    if side**2<N: side += 1
+    fig, axs = plt.subplots(side,side)
+    fig.suptitle("All bins " + title)
+    axs = axs.reshape(-1)
+    for i,img in enumerate(y):
+        axs[i].imshow(img.cpu().detach().numpy())
+        axs[i].set_title(str(i))
+    plt.show()
        
-def plot_channels(x):
+def plot_channels(x, maxN=None,tit_add=""):
     print("CHANNEL SHAPE: ", x.shape)
+    
     if len(x.shape)==5:
-        for channel in range(x.shape[2]):
+        if not maxN or maxN>x.shape[2]: maxN = x.shape[2]
+        channels = np.random.choice(x.shape[2],maxN, replace = False)
+        for channel in channels:
             
             plt.imshow(x[0,0,channel,:,:].cpu().detach().numpy())
-            plt.title(str(channel))
+            plt.title(str(channel)+" " + tit_add)
             plt.show()
     else:
-        for channel in range(x.shape[1]):
+        if not maxN or maxN>x.shape[1]: maxN = x.shape[1]
+        channels = np.random.choice(x.shape[1],maxN, replace = False)
+        for channel in channels:
             
             plt.imshow(x[0,channel,:,:].cpu().detach().numpy())
-            plt.title(str(channel))
+            plt.title(str(channel)+" " + tit_add)
             plt.show()
 class RainfieldCallback(pl.Callback):
     def __init__(self, val_samples, num_samples=1):
