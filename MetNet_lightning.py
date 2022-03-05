@@ -18,13 +18,13 @@ model = MetNetPylight(
         n_samples = 100,
         num_workers = 8,
         batch_size = 1,
-        learning_rate = 10
+        learning_rate = 1e-2
         )
 #MetNetPylight expects already preprocessed data. Can be change by uncommenting the preprocessing step.
 print(model)
 wandb_logger = WandbLogger(project="lit-wandb")
 
-trainer = pl.Trainer(max_epochs=5000, gpus=-1,log_every_n_steps=1, logger = wandb_logger,strategy="ddp_find_unused_parameters_false")
+trainer = pl.Trainer(track_grad_norm = 2, max_epochs=5000, gpus=-1,log_every_n_steps=1, logger = wandb_logger,strategy="ddp_find_unused_parameters_false")
 
 trainer.fit(model)
 wandb.finish()
