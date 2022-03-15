@@ -60,7 +60,9 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         self.temporal_enc = TemporalEncoder(
             image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
         )
-        self.position_embedding = AxialPositionalEmbedding(dim=self.temporal_enc.out_channels, shape = (input_size // 4, input_size // 4))
+        self.position_embedding = AxialPositionalEmbedding(
+            dim=self.temporal_enc.out_channels, shape=(input_size // 4, input_size // 4)
+        )
         self.temporal_agg = nn.Sequential(
             *[
                 AxialAttention(dim=hidden_dim, dim_index=1, heads=8, num_dimensions=2)
