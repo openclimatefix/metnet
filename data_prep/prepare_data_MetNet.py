@@ -204,16 +204,22 @@ def longlatencoding(data):
 
         lon_mean, lon_std = np.mean(lon), np.std(lon)
         lat_mean, lat_std = np.mean(lat), np.std(lat)
+        elev /= np.max(np.abs(elev))
         elev_mean, elev_std = np.mean(elev), np.std(elev)
-
+        try:
+            assert lon_std != 0
+            assert lat_std != 0
+            assert elev_std != 0
+        except AssertionError:
+            print("WARNING: LON LAT OR ELEV STD == 0")
         lon = (lon-lon_mean)/lon_std
         lat = (lat-lat_mean)/lat_std
         elev = (elev-elev_mean)/elev_std
         elev = np.log(elev-np.min(elev)+0.1)
-        elev /= np.max(elev)
-        lon = np.tanh(lon)
-        lat = np.tanh(lat)
-        elev = np.tanh(elev)
+        
+        #lon = np.tanh(lon)
+        #lat = np.tanh(lat)
+        #elev = np.tanh(elev)
         print("MINMAX lon: ", np.min(lon), np.max(lon))
         print("MINMAX  lat: ", np.min(lat), np.max(lat))
         print("MINMAX elev: ", np.min(elev), np.max(elev))
@@ -237,26 +243,31 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
     dates = []
     all_snapshots = []
     Y_dates = []
-
-
-
-
+    array_mean = 0
+    n = 0
     if not printer:
         sys.stdout = open(os.devnull, 'w')
     for i, array,date in h5_iterator(h5_path, N):
+        
         if (i+1)%1000==0:
             print("Loaded samples: ",(i+1)//spaced)
-
+        
         if i%spaced==0:
             snapshots.append(array)
             dates.append(date)
         all_snapshots.append(array)
-        Y_dates.append(date)
-    print("Done loading samples! \n")
+        array_mean += np.mean(array)
+        n+=1
 
+        Y_dates.append(date)
+    print("MEAN", array_mean/n)
+    print("Done loading samples! \n")
+    
     data = np.array(snapshots)
     all_data = np.array(all_snapshots)
-
+    
+    del(snapshots)#MANAGE MEMORY
+    del(all_snapshots)#MANAGE MEMORY
     print("\nDatatype data: ", data.dtype)
     print("\nInput data shape: ", data.shape, " size: ", sys.getsizeof(data))
 
@@ -272,8 +283,12 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
     length_y = (y1-y0)//16 #size of Y is 16 times smaller
     Y_lim_x = slice(center_x-length_x//2,center_x+length_x//2)
     Y_lim_y = slice(center_y-length_y//2,center_y+length_y//2)
+    print("SLICED x: ",Y_lim_x)
+    print("SLICED y: ",Y_lim_y)
     Y = all_data[:,Y_lim_y,Y_lim_x]
+    del(all_data) #MANAGE MEMORY
     print(f"\nY shape here (not ready): {Y.shape}")
+
     data =  data[:,y_lim,x_lim]
     print(f"\nSliced data to dimensions {data.shape}")
 
@@ -297,8 +312,6 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
             center = np.expand_dims(center, axis=3)
             print(f"\nAdding channel dimension to centercrop, new shape: {center.shape}")
     if spacedepth==True:
-        #print(f"\nStarting space-to-depth transform on data")
-
         data = space_to_depth(data,box)
 
         print(f"\nSpace-to-depth done! Data shape: {data.shape}")
@@ -314,18 +327,34 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
     GAIN = 0.4
     OFFSET = -30
     data = data*GAIN + OFFSET
+    
+    data_after_gained = np.copy(data)
     maxx = np.max(data)
     print("\nMAX DBZ data(should be 72): ", maxx)
     data_new = np.empty(data.shape)
-    runs = data_new.shape[0]//5000
-    for run in range(runs):
+    N = data_new.shape[0]
+    runs = N//5000
+    for run in range(0,N,5000):
         data_new[run:run+5000] = np.log(data[run:run+5000]+0.01)/4
         data_new[run:run+5000] = np.nan_to_num(data_new[run:run+5000])
         data_new[run:run+5000] = np.tanh(data_new[run:run+5000])
     
-    data_new[runs:] = np.log(data[runs:]+0.01)/4
-    data_new[runs:] = np.nan_to_num(data_new[runs:])
-    data_new[runs:] = np.tanh(data_new[runs:])
+    data_new[runs*5000:] = np.log(data[runs*5000:]+0.01)/4
+    data_new[runs*5000:] = np.nan_to_num(data_new[runs*5000:])
+    data_new[runs*5000:] = np.tanh(data_new[runs*5000:])
+    #data[np.where(data<0)] = 0
+    '''data_new = np.log(data+0.01)/4
+    data_new = np.nan_to_num(data_new)
+    data_new = np.tanh(data_new)'''
+    
+    
+    
+    for i in range(8):
+        try:
+            assert np.std(data_new[:,:,:,i]) != 0
+        except AssertionError:
+            print(f"WARNING: CHANNEL {i} STD == 0")
+        data_new[:,:,:,i] = (data_new[:,:,:,i]- np.mean(data_new[:,:,:,i]))/np.std(data_new[:,:,:,i])
     
 
     print(f"\nScaling data with log(x+0.01)/4, replace NaN with 0 and apply tanh(x) and convert to data type: {data.dtype}, nbytes: {data.nbytes}, size: {data.size}")
@@ -336,10 +365,7 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
 
     data = datetime_encoder(data,dates,plotter=False)
     print(f"\nEncoding datetime periodical variables (seasonally,hourly) and concatenating with data. New shape: {data.shape}, dtype: {data.dtype}")
-    '''
-    lead_time_spacing = 5
-    hours_ahead = 5 # center square of 28km is, 434 to edge, ~300km to dataedge,60km/h gives ~7h
-    lead_times = (hours_ahead*60//lead_time_spacing)  leadtimes'''
+    
 
 
 
@@ -347,29 +373,90 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
     data = np.swapaxes(np.swapaxes(data,3,1),2,3)
     print(f"\nData swapping axes to get channel first, now shape: {data.shape}")
     X,Y, X_dates,Y_dates = temporal_concatenation(data,dates,Y,Y_dates,concat = concat, overlap = overlap, spaced = spaced,lead_times = lead_times)
+
     print(f"\nDone with temporal concatenation and target_split! Data shape: {X.shape}, target shape: {Y.shape}")
-    #X[:,:,0:8,:,:] = X[:,:,0:8,:,:]*0.4 - 30
-    '''for channel in range(8,X.shape[2]):
-
-        plt.imshow(X[0,0,channel,:,:])
-        plt.show()'''
     Y = Y*GAIN + OFFSET
-    print("MINMAX Y AFTER GAIN + OFFSET", np.min(Y), np.max(Y))
+    '''for i in range(0,5):
+        fig, ax = plt.subplots(1,2)
+        ax[0].imshow(X[i,0,0,:,:])
+        #ax[0].imshow(np.mean(data_after_gained[i*7,42:70,42:70,4:8],axis=2))
+        ax[0].set_title(X_dates[i][6])
+        ax[1].imshow(Y[i,0,:,:])
+        ax[1].set_title(Y_dates[i][0])
+        plt.show()'''
+    
+    print("comparing X and Y after gain:", np.mean(data_after_gained[:,:,4:8]), np.mean(Y))
+    
+    Y_gained = np.copy(Y)
 
-    Y = rain_binned(Y, n_bins = n_bins, increment = rain_step)
+    print("MINMAX Y AFTER GAIN + OFFSET", np.min(Y), np.max(Y))
+    
+    passer = np.mean(X[:,6,4:8,:,:],axis=1)
+    
+    Y = rain_binned(Y, n_bins = n_bins, increment = rain_step, x = passer)
 
     print(f"\nDone with binning targets into bins, target shape: {Y.shape}")
 
-
-
     if not printer:
         sys.stdout = sys.__stdout__
-
-
+    
+    #Remove low-rainfall data:
+    meaned = np.mean(X[:,:,0:4,:,:], axis=(1,2,3,4))
+    idx_sorted = np.argsort(meaned)
+    
+    N = len(meaned)
+    '''for j in range(N-1,0,-1):
+        fig, ax = plt.subplots(7,1)
+        for k in range(7):
+            i = idx_sorted[j]
+            
+            im = ax[k].imshow(X[i,k,0,:,:])
+            ax[k].set_title(f"MEAN: {meaned[i]:.2f}")
+            
+        
+        fig.subplots_adjust(right=0.8)
+        cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+        fig.colorbar(im, cax=cbar_ax)
+        plt.show()'''
+    to_keep = int(N*0.2)
+    idx_to_keep = idx_sorted[-to_keep:]
+    #print(meaned)
+    #print(meaned[idx_to_keep])
+    
+    X = X[idx_to_keep]
+    Y = Y[idx_to_keep]
+    X_dates = [X_dates[i] for i in idx_to_keep]
+    Y_dates = [Y_dates[i] for i in idx_to_keep]
+    print(f"\nOnly keeping {to_keep} out of {N} samples to reduce low rainfall events. New X shape: {X.shape}")
+    N = X.shape[0]
+    '''for j in range(N-1,0,-1):
+        fig, ax = plt.subplots(7,2)
+        for k in range(7):
+            
+            
+            im = ax[k,0].imshow(X[j,k,0,:,:])
+            ax[k,0].set_title(f"MEAN: {np.mean(X[j,k,0,:,:]):.2f}")
+            ax[k,1].imshow(Y[j,k,0,:,:])
+            
+        
+        fig.subplots_adjust(right=0.8)
+        cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+        fig.colorbar(im, cax=cbar_ax)
+        plt.show()
+    '''
+    
+    #print(f"\nOnly keeping {to_keep} out of {N} samples to reduce low rainfall events. New X shape: {X.shape}")
+    
+    Y_thresh = np.ones(Y[:,0,:,:].shape)*-1
+    
+    Y_thresh[np.where(Y[:,0,:,:]==1)] = 1
+    
+    
+    #rain_check(X, Y_gained[idx_to_keep], Y_thresh,X_dates,Y_dates,X_dict,Y_dict, meaned)
 
     return X,Y, X_dates,Y_dates
 
-def rain_binned(Y, n_bins = 51,increment = 2):
+def rain_binned(Y, n_bins = 51,increment = 2, x = None):
     SHAPE = Y.shape
     n,leads,w,h = SHAPE
     max_fall = n_bins*increment
@@ -378,9 +465,16 @@ def rain_binned(Y, n_bins = 51,increment = 2):
     Y[np.where(Y>70)] = 0
 
     rain = (10**(Y / 10.0) / 200.0)**(1.0 / 1.6)
+    
     print("RAIN MINMAX: ", np.min(rain), np.max(rain))
-    '''for lead_time in range(leads):
-        plt.imshow(rain[10,lead_time,:,:])
+    
+    '''for i in range(n):
+        fig,ax = plt.subplots(1,2)
+        rain_x = (10**(x[i] / 10.0) / 200.0)**(1.0 / 1.6)
+        ax[0].imshow(x[i][(112//2)-14:(112//2)+14, (112//2)-14:(112//2)+14])
+        ax[0].set_title("x zoomed")
+        ax[1].imshow(rain[i,0,:,:])
+        ax[1].set_title("y")
         plt.show()'''
     rain_bins = np.zeros((n,leads,n_bins,w,h))
     counter = []
@@ -403,12 +497,46 @@ def rain_binned(Y, n_bins = 51,increment = 2):
     print("RAINBINS: ", rain_bins.size, " counter size: ", sum(counter))
     
     print(counter)
-    '''plt.plot(counter)
-    plt.show()'''
+    
 
     return rain_bins
+'''
+def rain_check(X, Y,Y_thresh,x_dates,y_dates,X_dict,Y_dict,meaned):
+    X_mid = np.mean(X[:,:,4:8], axis = 2) #,42:70, 42:70
+    N = min(X.shape[0], Y.shape[0])
+    temps = X_mid.shape[1]
+    leads = min(Y.shape[1],temps)
+    
+    for n in range(N):
+        fig, axs = plt.subplots(5,temps)
+        axs = axs.reshape(-1)
+        #print(X_mid[n,0,:,:].reshape(-1))
+        for i in range(temps):
+            #print("i: ", i, "\n", X_mid[n,i,:,:].reshape(-1))
+            
+            print("MINMAX", np.min(X_mid[n,i,:,:]), np.max(X_mid[n,i,:,:]))
+            #print(X_mid[np.where(np.isnan(X_mid))] + np.random.random(X_mid[np.where(np.isnan(X_mid))].shape))
+            im = axs[i].imshow(X_mid[n,i,:,:])
 
-
+            #axs[i].set_title(x_dates[n][i][-5:])
+        for i in range(temps):
+            im = axs[i+temps].imshow(X_dict[x_dates[n][i]])
+            axs[i+temps].set_title(x_dates[n][i][-5:])
+        for j in range(leads): 
+            im = axs[j+2*temps].imshow(Y[n,j,:,:])
+            axs[j+2*temps].set_title(y_dates[n][j][-5:])
+        for j in range(leads): 
+            im = axs[j+3*temps].imshow(Y_thresh[n,j,:,:])
+            axs[j+3*temps].set_title(y_dates[n][j][-5:])
+        for j in range(leads): 
+            im = axs[j+4*temps].imshow(Y_dict[y_dates[n][i]])
+            axs[j+4*temps].set_title(x_dates[n][i][-5:])
+        fig.suptitle("mean : " + str(meaned[n]))
+        fig.subplots_adjust(right=0.8)
+        cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+        fig.colorbar(im, cax=cbar_ax)
+        plt.show()'''
+        
 
 if __name__=="__main__":
 
