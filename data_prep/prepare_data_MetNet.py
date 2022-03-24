@@ -46,14 +46,15 @@ def date_assertion(dates,expected_delta = 5):
         #print("DELTA ", minutes, "delta ", expected_delta)
         assert int(minutes) == expected_delta
 
-def h5_iterator(h5_file,maxN = 100,spaced = 1):
+def h5_iterator(h5_file,maxN = 100,spaced = 1, starter = 0):
     """Iterates through the desired datafile and returns index, array and datetime"""
 
     with h5.File(h5_file,"r") as f:
 
         keys = list(f.keys())
         for i,name in enumerate(keys):
-
+            if i<starter:
+                continue
             if i%spaced!=0:
                 continue
             j = i//spaced
@@ -61,7 +62,7 @@ def h5_iterator(h5_file,maxN = 100,spaced = 1):
 
             #print(name, obj)
             if maxN:
-                if i//spaced>=maxN: break
+                if (i-starter)//spaced>=maxN: break
             #print(name)
             date = name
             y, m, d, hh, mm = date.split("_")
@@ -233,41 +234,74 @@ def longlatencoding(data):
 
     print(f"\ndone! it has shape {lonlatelev.shape}")
 
-    return np.concatenate((data,lonlatelev), axis=3)
+    return np.concatenate((data,lonlatelev), axis=3, dtype = np.float32)
 
 
 
-def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881-448,881), downsampling_rate = 2, overlap = 0, spaced=3,downsample = True, spacedepth =True,centercrop=True,box=2,printer=True, rain_step = 0.2, n_bins=512):
+def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881-448,881), downsampling_rate = 2, overlap = 0, spaced=3,downsample = True, spacedepth =True,centercrop=True,box=2,printer=True, rain_step = 0.2, n_bins=512, keep_biggest = 0.8):
     #15 minutes between datapoints is default --> spaced = 3
     snapshots = []
     dates = []
     all_snapshots = []
     Y_dates = []
     array_mean = 0
+    means = []
     n = 0
     if not printer:
         sys.stdout = open(os.devnull, 'w')
     for i, array,date in h5_iterator(h5_path, N):
         
         if (i+1)%1000==0:
-            print("Loaded samples: ",(i+1)//spaced)
+            print("Loaded samples: ",n)
         
         if i%spaced==0:
             snapshots.append(array)
             dates.append(date)
+            means.append(np.mean(array))
+            n+=1
         all_snapshots.append(array)
         array_mean += np.mean(array)
-        n+=1
+        
 
         Y_dates.append(date)
-    print("MEAN", array_mean/n)
+    
+    '''print("MEAN", array_mean/n)
     print("Done loading samples! \n")
+    n_snap = len(snapshots)
+    n_all_snaps = len(all_snapshots)
+    means = np.array(means)[0:(n_snap//concat)*concat].reshape(n_snap//concat, concat)
+    running_means = np.mean(means,axis=1)
+    n_runs = len(running_means)
+    n_to_keep = int(n_runs*keep_biggest)
+    idx_to_keep = np.argsort(running_means)[-n_to_keep:]
+    print(idx_to_keep)
+    temp_s = []
+    temp_s_all = []
+    temp_s_dates = []
+    temp_s_all_dates = []
+    print("LEN BEFORE", len(snapshots), len(all_snapshots))
+    for i in idx_to_keep:
+        temp_s.extend(snapshots[i*concat:i*concat+concat])
+        temp_s_all.extend(all_snapshots[i*concat*spaced:i*concat*spaced+concat*spaced])
+        temp_s_dates.extend(dates[i*concat:i*concat+concat])
+        temp_s_all_dates.extend(Y_dates[i*concat*spaced:i*concat*spaced+concat*spaced])
+    snapshots = temp_s
+    all_snapshots = temp_s_all
+    dates = temp_s_dates
+    Y_dates = temp_s_all_dates
+    print("LEN AFTER", len(snapshots), len(all_snapshots))
+    print(dates)
+    print(Y_dates)
+    input()'''
+    
+    
     
     data = np.array(snapshots)
+    del(snapshots) # MANAGE MEMORY
     all_data = np.array(all_snapshots)
     
-    del(snapshots)#MANAGE MEMORY
-    del(all_snapshots)#MANAGE MEMORY
+    
+    del(all_snapshots) # MANAGE MEMORY
     print("\nDatatype data: ", data.dtype)
     print("\nInput data shape: ", data.shape, " size: ", sys.getsizeof(data))
 
@@ -324,43 +358,9 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
         print(f"\nConcatenating data and centercrop to dimenison: {data.shape} with shape [:,:,:,downsampled + centercrop]")
 
 
-    GAIN = 0.4
-    OFFSET = -30
-    data = data*GAIN + OFFSET
-    
-    data_after_gained = np.copy(data)
-    maxx = np.max(data)
-    print("\nMAX DBZ data(should be 72): ", maxx)
-    data_new = np.empty(data.shape)
-    N = data_new.shape[0]
-    runs = N//5000
-    for run in range(0,N,5000):
-        data_new[run:run+5000] = np.log(data[run:run+5000]+0.01)/4
-        data_new[run:run+5000] = np.nan_to_num(data_new[run:run+5000])
-        data_new[run:run+5000] = np.tanh(data_new[run:run+5000])
-    
-    data_new[runs*5000:] = np.log(data[runs*5000:]+0.01)/4
-    data_new[runs*5000:] = np.nan_to_num(data_new[runs*5000:])
-    data_new[runs*5000:] = np.tanh(data_new[runs*5000:])
-    #data[np.where(data<0)] = 0
-    '''data_new = np.log(data+0.01)/4
-    data_new = np.nan_to_num(data_new)
-    data_new = np.tanh(data_new)'''
-    
-    
-    
-    for i in range(8):
-        try:
-            assert np.std(data_new[:,:,:,i]) != 0
-        except AssertionError:
-            print(f"WARNING: CHANNEL {i} STD == 0")
-        data_new[:,:,:,i] = (data_new[:,:,:,i]- np.mean(data_new[:,:,:,i]))/np.std(data_new[:,:,:,i])
     
 
-    print(f"\nScaling data with log(x+0.01)/4, replace NaN with 0 and apply tanh(x) and convert to data type: {data.dtype}, nbytes: {data.nbytes}, size: {data.size}")
-
-
-    data = longlatencoding(data_new)
+    data = longlatencoding(data)
     print(f"\nConcatenating data with long, lat and elevation. New shape: {data.shape}, dtype: {data.dtype}")
 
     data = datetime_encoder(data,dates,plotter=False)
@@ -373,8 +373,45 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
     data = np.swapaxes(np.swapaxes(data,3,1),2,3)
     print(f"\nData swapping axes to get channel first, now shape: {data.shape}")
     X,Y, X_dates,Y_dates = temporal_concatenation(data,dates,Y,Y_dates,concat = concat, overlap = overlap, spaced = spaced,lead_times = lead_times)
-
+    
     print(f"\nDone with temporal concatenation and target_split! Data shape: {X.shape}, target shape: {Y.shape}")
+    
+    GAIN = 0.4
+    OFFSET = -30
+    X[:,:,0:8] = X[:,:,0:8]*GAIN + OFFSET
+    
+
+    maxx = np.max(X[:,:,0:8])
+    print("\nMAX DBZ data(should be 72): ", maxx)
+    data_new = np.empty(X[:,:,0:8].shape)
+    N = data_new.shape[0]
+    runs = N//5000
+    for run in range(0,N,5000):
+        data_new[run:run+5000,:,0:8] = np.log(X[run:run+5000,:,0:8]+0.01, dtype = np.float32)/4
+        data_new[run:run+5000,:,0:8] = np.nan_to_num(data_new[run:run+5000,:,0:8])
+        data_new[run:run+5000,:,0:8] = np.tanh(data_new[run:run+5000,:,0:8], dtype = np.float32)
+    
+    data_new[runs*5000:,:,0:8] = np.log(X[runs*5000:,:,0:8]+0.01, dtype = np.float32)/4
+    data_new[runs*5000:,:,0:8] = np.nan_to_num(data_new[runs*5000:,:,0:8])
+    data_new[runs*5000:,:,0:8] = np.tanh(data_new[runs*5000:,:,0:8], dtype = np.float32)
+    #data[np.where(data<0)] = 0
+    '''data_new = np.log(data+0.01)/4
+    data_new = np.nan_to_num(data_new)
+    data_new = np.tanh(data_new)'''
+    
+    
+    
+    for i in range(8):
+        try:
+            assert np.std(data_new[:,:,:,i]) != 0
+        except AssertionError:
+            print(f"WARNING: CHANNEL {i} STD == 0")
+        data_new[:,:,i] = (data_new[:,:,i] - np.mean(data_new[:,:,i] ))/np.std(data_new[:,:,i] )
+    
+
+    print(f"\nScaling data with log(x+0.01)/4, replace NaN with 0 and apply tanh(x) and convert to data type: {data.dtype}, nbytes: {data.nbytes}, size: {data.size}")
+
+    
     Y = Y*GAIN + OFFSET
     '''for i in range(0,5):
         fig, ax = plt.subplots(1,2)
@@ -385,7 +422,7 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
         ax[1].set_title(Y_dates[i][0])
         plt.show()'''
     
-    print("comparing X and Y after gain:", np.mean(data_after_gained[:,:,4:8]), np.mean(Y))
+    #print("comparing X and Y after gain:", np.mean(data_after_gained[:,:,4:8]), np.mean(Y))
     
     Y_gained = np.copy(Y)
 
@@ -397,8 +434,7 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
 
     print(f"\nDone with binning targets into bins, target shape: {Y.shape}")
 
-    if not printer:
-        sys.stdout = sys.__stdout__
+    
     
     #Remove low-rainfall data:
     meaned = np.mean(X[:,:,0:4,:,:], axis=(1,2,3,4))
@@ -418,12 +454,16 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
         cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
         fig.colorbar(im, cax=cbar_ax)
         plt.show()'''
-    to_keep = int(N*0.2)
+    to_keep = int(N*keep_biggest)
     idx_to_keep = idx_sorted[-to_keep:]
     #print(meaned)
     #print(meaned[idx_to_keep])
     
     X = X[idx_to_keep]
+    '''print(meaned[idx_sorted])
+    print(meaned[idx_to_keep])
+    print(np.mean(X[:,:,0:4,:,:], axis=(1,2,3,4)))
+    input()'''
     Y = Y[idx_to_keep]
     X_dates = [X_dates[i] for i in idx_to_keep]
     Y_dates = [Y_dates[i] for i in idx_to_keep]
@@ -442,8 +482,16 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
         fig.subplots_adjust(right=0.8)
         cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
         fig.colorbar(im, cax=cbar_ax)
-        plt.show()
-    '''
+        plt.show()'''
+        
+    #plots all channels seperately:
+    '''channels = X.shape[2]
+    for i in range(N):
+        fig, axs = plt.subplots(4,4)
+        axs = axs.reshape(-1)
+        for c in range(channels):
+            axs[c].imshow(X[i,0,c])
+        plt.show()'''
     
     #print(f"\nOnly keeping {to_keep} out of {N} samples to reduce low rainfall events. New X shape: {X.shape}")
     
@@ -453,7 +501,8 @@ def load_data(h5_path,N = 3000,lead_times = 60, concat = 7,  square = (0,448,881
     
     
     #rain_check(X, Y_gained[idx_to_keep], Y_thresh,X_dates,Y_dates,X_dict,Y_dict, meaned)
-
+    if not printer:
+        sys.stdout = sys.__stdout__
     return X,Y, X_dates,Y_dates
 
 def rain_binned(Y, n_bins = 51,increment = 2, x = None):
@@ -541,7 +590,7 @@ def rain_check(X, Y,Y_thresh,x_dates,y_dates,X_dict,Y_dict,meaned):
 if __name__=="__main__":
 
 
-    data,dates  = load_data("combination_all_pn157.h5",N =500,downsample=True,spacedepth=True,printer=True)
+    data,dates  = load_data("combination_all_pn157.h5",N =500,downsample=True,spacedepth=True,printer=True,)
     print(data.nbytes)
 
 

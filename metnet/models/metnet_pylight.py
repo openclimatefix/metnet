@@ -12,6 +12,9 @@ from torch.utils.data import DataLoader, random_split
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import wandb
+from sklearn.metrics import f1_score
+
 
 
 class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
@@ -34,12 +37,15 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         num_workers: int = 32,
         batch_size: int = 8,
         momentum: float = 0.9,
+        att_heads: int = 8,
         plot_every: int = 10,
+        keep_biggest: float = 0.8,
         
         learning_rate: int = 1e-2, 
         **kwargs,
     ):
         super(MetNetPylight, self).__init__()
+        pl.seed_everything(42, workers = True)
         config = locals()
         config.pop("self")
         config.pop("__class__")
@@ -67,6 +73,16 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         self.batch_size = batch_size
         self.plot_every = plot_every
         self.momentum = momentum
+        self.att_heads = att_heads
+        lead_time_keys = list(range(forecast_steps))
+        lead_time_counts = [0 for i in range(forecast_steps)]
+        self.lead_time_histogram = dict(zip(lead_time_keys,lead_time_counts))
+        self.keep_biggest = keep_biggest
+        
+        if str(self.device)== "cuda:0":
+            self.printer = True
+        else:
+            self.printer = False
         '''
         self.preprocessor = MetNetPreprocessor(
             sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
@@ -76,10 +92,11 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         new_channels *= 2  # Concatenate two of them together
         input_channels = input_channels - sat_channels + new_channels'''
         #self.drop = nn.Dropout(temporal_dropout)
-        if image_encoder in ["downsampler", "default"]:
+        '''if image_encoder in ["downsampler", "default"]:
             image_encoder = DownSampler(input_channels + forecast_steps)
         else:
-            raise ValueError(f"Image_encoder {image_encoder} is not recognized")
+            raise ValueError(f"Image_encoder {image_encoder} is not recognized")'''
+        image_encoder = DownSampler(input_channels + forecast_steps)
         self.image_encoder = TimeDistributed(image_encoder)
         self.ct = ConditionTime(forecast_steps)
         self.temporal_enc = TemporalEncoder(
@@ -88,7 +105,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         self.position_embedding = AxialPositionalEmbedding(dim=self.temporal_enc.out_channels, shape = (input_size // 4, input_size // 4))
         self.temporal_agg = nn.Sequential(
             *[
-                AxialAttention(dim=hidden_dim, dim_index=1, heads=8, num_dimensions=2)
+                AxialAttention(dim=hidden_dim, dim_index=1, heads=self.att_heads, num_dimensions=2)
                 for _ in range(num_att_layers)
             ]
         )
@@ -98,16 +115,23 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         
         self.save_hyperparameters()
 
-    def encode_timestep(self, x, fstep=1):
+    def encode_timestep(self, x, fstep=1, lead_times = []):
         #print("\n shape before preprocess: ", x.shape)
         # Preprocess Tensor
         #x = self.preprocessor(x)
         #print("\n shape after preprocess: ", x.shape)
         # Condition Time
         #plot_channels(x, 1, tit_add = "INPUT")
-        x = self.ct(x, fstep)
-        
-        x = x.double()
+        if lead_times:
+            bs, t, c, w, h = x.shape
+            x_temp = torch.empty((bs, t, c+self.forecast_steps, w, h), device = self.device)
+            for i,lead_time in enumerate(lead_times):
+                
+                x_temp[i] = self.ct(x[i:i+1], lead_time)
+        else:
+            x_temp = self.ct(x, fstep)
+
+        x = x_temp.double()
         
         
 
@@ -130,7 +154,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         #print("\n shape after temporal_agg: ", agg.shape)
         return state
 
-    def forward(self, imgs,lead_time):
+    def forward(self, imgs,lead_time = 0, lead_times = []):
         """It takes a rank 5 tensor
         - imgs [bs, seq_len, channels, h, w]
         - lead_time #random int between 0,self.forecast_steps
@@ -140,33 +164,39 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         #print("in forward")
         #print_channels(imgs[0,0])
         #plot_channels(imgs, 2, tit_add = "input")
-        x = self.encode_timestep(imgs, lead_time)
+        #print(imgs.shape)
+        x = self.encode_timestep(imgs, lead_time, lead_times)
         #plot_channels(x, 2, tit_add = "after encode")
         #print("shape before head: ", x.shape)
         out = self.head(x)
         #print("shape after head: ", out.shape)
         #plot_channels(out, 1, tit_add = "after head")
-        soft = torch.softmax(out,dim=1)
+        #soft = torch.softmax(out,dim=1)
         #print("shape after softmax: ", soft.shape)
         #plot_channels(out, 1, tit_add = "after softmax")
         #plot_bins(out[0], " after head",soft[0], "after softmax")
-        return soft
+        return out
 
     def training_step(self, batch, batch_idx):
         
         x, y = batch
         #print("training_step len: ", x.shape[0])
-
-        lead_time = np.random.randint(0,self.forecast_steps)
-        L = CrossEntropyLoss()
-        y_hat = self(x.float(),lead_time)
         
-        '''if (self.global_step+1)%self.plot_every == 0 and str(self.device)== "cuda:0":
-            for i in range(x.shape[0]):
-                
-                plot_bins(x[i], y_hat[i], " y_hat global step: "+str(self.global_step),y[i,0], "y global step: "+str(self.global_step))
-        '''
-        loss = L(y_hat, y[:,lead_time])
+        bs = x.shape[0]
+        lead_times = [np.random.randint(0,self.forecast_steps) for _ in range(bs)]
+        
+        L = CrossEntropyLoss()
+        y_hat = self(x.float(),lead_times=lead_times)
+        #y_leads = torch.empty(y[:,lead_time].shape, device = self.device)
+        #y_leads = torch.tensor([y[i,lead_times[i]] for i in range(self.batch_size)], device = self.device)
+        loss = L(y_hat, y[torch.arange(bs), lead_times])
+        if self.plot_every:
+            if (self.global_step)%self.plot_every == 0 and str(self.device)== "cuda:0":
+                for lead_time in range(self.forecast_steps):
+                    y_hat = self(x.float(),lead_time = lead_time)
+                    plot_bins(x[0], y_hat[0], " y_hat leadtime: "+str(lead_time),y[0,lead_time], " y leadtime: "+str(lead_time))
+        
+        #loss = L(y_hat, y[:,lead_time])
         
         self.log("train/loss", loss, on_epoch=True)
         return {"loss": loss}
@@ -183,14 +213,44 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
             y_hat = self(x.float(),lead_time)
             
             loss += L(y_hat, y[:,lead_time])
+        loss /= self.forecast_steps
         self.log("validation/loss_epoch", loss, on_step=False, on_epoch=True)
         #if self.global_step%100 == 1:
             #plot_category(y[0,0],y_hat[0],self.output_channels,self.rain_step,self.device)
         return {"loss": loss}
+        
+    def test_step(self, batch, batch_idx):
+        x,y = batch
+        # ---------- calculate test_loss ---------- 
+        loss = 0
+        L = CrossEntropyLoss()
+        for lead_time in range(self.forecast_steps):
+            y_hat= self(x,lead_time)
+            loss += L(y_hat, y[:,lead_time])
+        loss /= self.forecast_steps
+        self.log("test/loss_epoch", loss, on_step=False, on_epoch=True)
+        # ---------- calculate test_loss ---------- 
+        
+        # ---------- get all lead times  ---------- 
+        y_hat = torch.empty(y.shape)
+        for lead_time in range(self.forecast_steps):
+            y_hat[:,lead_time] = self(x,lead_time)
+        # ---------- get all lead times  ----------    
+        
+        #plot bins:
+        for i in range(x.shape[0]):
+            plot_bins(x[i], y_hat[i,0], "x" ,y[i,0], "y")
+        #plot category:
+        for i in range(x.shape[0]):
+            plot_category(y[i,0],y_hat[i,0],self.output_channels,self.rain_step,self.device)
 
     def validation_epoch_end(self, val_step_outputs):
+        '''wombo = self.logger.experiment
+        hist_scores = [[s] for s in self.lead_time_histogram.values()]
+        table = wandb.Table(data = hist_scores, columns = ["lead_times"])
+        wombo.log({"leadtimes_histogram": wombo.plot.histogram(table, "Lead times", title="Lead times histogram")})'''
         outs = tuple([x["loss"] for x in val_step_outputs])
-        avg_val_loss = torch.tensor(outs).mean()
+        avg_val_loss = torch.tensor(outs, device = self.device).mean()
         return {"val_loss":avg_val_loss}
 
     def configure_optimizers(self):
@@ -198,11 +258,15 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         return optimizer
 
     def setup(self, stage = None):
-        data = metnet_dataloader.MetNetDataset(self.file_name, N = self.n_samples, lead_times = self.forecast_steps, rain_step = self.rain_step, n_bins = self.output_channels)
+        data = metnet_dataloader.MetNetDataset(self.file_name, N = self.n_samples, lead_times = self.forecast_steps, rain_step = self.rain_step, n_bins = self.output_channels, keep_biggest = self.keep_biggest, printer = self.printer)
         nsamples = len(data)
-        split_list = [math.floor(nsamples*0.7),math.floor(nsamples*0.3)]
+        split_list = [math.floor(nsamples*0.7),math.floor(nsamples*0.15),math.floor(nsamples*0.15)]
+        split_list[1] = max(1,split_list[1])
+        split_list[2] = max(1,split_list[2])
         split_list[0] += nsamples-sum(split_list)
-        self.train_data, self.val_data = random_split(data, split_list)
+        self.train_data, self.val_data, self.test_data= random_split(data, split_list)
+        #print("SHAPES: ", self.train_data.shape, self.val_data.shape, self.test_data.shape)
+        
         
     def train_dataloader(self):
         train_loader = DataLoader(dataset=self.train_data,batch_size=self.batch_size, num_workers =  self.workers)
@@ -210,11 +274,24 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
     def val_dataloader(self):
         val_loader = DataLoader(self.val_data,batch_size=self.batch_size, num_workers =  self.workers)
         return val_loader
+    def test_dataloader(self):
+        test_loader = DataLoader(self.test_data,batch_size=self.batch_size, num_workers =  self.workers)
+        return test_loader
         
-    def thresh_F1(self, pred, target,thresh = 0.2):
+    def thresh_F1(self, y_hat, y,thresh = 0.2):
+        #input: pred shape (None, lead_times, bins, 28, 28), y shape (None, lead_times, bins, 28, 28)
+        n, leads, bins, w, h = y_hat.shape
         thresh_bin = thresh//self.rain_step 
-        norms =  torch.sum(pred, dim=1)
-
+        y_thresh = torch.zeros(n, leads, 2, w, h) #binary threshhold
+        y_thresh[:,:,1,:,:] = 1
+        y_hat_thresh = torch.copy(y_thresh)
+        idx_y = torch.where(y[:,:,:thresh_bin,:,:] == 1)
+        idx_y_hat = torch.where(y_hat[:,:,:thresh_bin,:,:] == 1)
+        y_thresh[:,:,0,:,:][idx_y] = 1
+        y_thresh[:,:,1,:,:][idx_y] = 0
+        
+        
+    
 class TemporalEncoder(nn.Module):
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
         super().__init__()
@@ -259,6 +336,7 @@ def plot_category(y,y_hat,bins,increment,title,thresh_bin = 2):
     plt.show()
 
 def plot_bins(x, y1, title1="", y2 = 0, title2=""):
+    
     N = y1.shape[0]
     side = int(N**0.5)
     if side**2<N: side += 1
@@ -306,7 +384,9 @@ def plot_channels(x, maxN=None,tit_add=""):
             plt.colorbar()
             plt.title(str(channel)+" " + tit_add)
             plt.show()
-            
+
+
+          
 def print_channels(x):
     x = x.cpu().detach().numpy()
     for channel, array in enumerate(x):
