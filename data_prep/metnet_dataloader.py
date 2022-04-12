@@ -1,5 +1,5 @@
 import torch
-from .prepare_data_MetNet import load_data
+#from .prepare_data_MetNet import load_data
 from torch.utils.data import Dataset, DataLoader
 import math
 import numpy as np
@@ -7,111 +7,167 @@ import os
 import matplotlib.pyplot as plt
 
 class MetNetDataset(Dataset):
-    def __init__(self,file_name,N, lead_times = 60, rain_step = 0.2, n_bins = 512, skip_data = 0, keep_biggest = 0.8, printer = True):
-        """
-        Input:
-        file_name: path to hdf5-file.
-        N: time-window in 5minut increments. N=1000 means 5000 minutes of data
-        lead_times: Lead times
-        Output:
-        X: numpy array shape (None, time, channels, width, height),
-        Y: numpy array shape (None, lead_times, channels, width, height)
-        """
-        data_path = "/proj/berzelius-2022-18/users/sm_valfa/metnet_pylight/metnet/data_exclusive/"
+    def __init__(self,ID, N=None, keep_biggest = 0.5, leadtime_spacing = 1, lead_times = 60):
+        
+        data_path = "/proj/berzelius-2022-18/users/sm_valfa/metnet_pylight/metnet/bin_sorted_data/"+ID+"/"
+        self.leadtime_spacing = leadtime_spacing
+        
+        self.file_names = []
+        self.ID = ID
+        self.means = []
+        self.weights = None
+        
         file_list = os.listdir(data_path)
-        means = []
-        dates = []
-        names = []
-        for name in file_list:
-            if not name[-4:] == ".npy": continue
-            if name[-5:] == "Y.npy": continue
-            names.append(name)
-            name = name[:-4] #remove .npy
-            name = name.split("/")[-1] #remove directories
-            #print(name)
-            mean = name.split("_")[0]
-            date = "_".join(name.split("_")[1:-1])
-            print(mean, date)
-            means.append(float(mean))
-            dates.append(date)
-        means = np.array(means)
-        idx_sorted = np.argsort(means)
-        print("MEANS: ", means[idx_sorted])
-        print(len(means))
-        N = min(N,len(means))
+        if not N:
+            N = len(file_list)
         
-        '''bins = np.arange(-35, 40, 5) # fixed bin size
-        plt.xlim([min(means)-5, max(means)+5])
-
-        plt.hist(means, bins=bins, alpha=0.5)
-        plt.title('Mean rainfall input')
-        plt.xlabel('mean DBZ')
-        plt.ylabel('count')
-
-        plt.show()'''
-        X = np.empty((N, 7, 15, 112,112))
-        Y = np.empty((N, lead_times, n_bins, 28,28))
-        for i in range(N):
-            if (i+1)%100==0:
-                print(f"Loaded samples: {i+1}/{N}")
-            idx = idx_sorted[-(i+1)]
-            date = dates[idx]
-            name_X = data_path + names[idx]
-            name_Y = data_path + names[idx].replace("X", "Y")
-            X_here = np.load(name_X)
-            #X_here = np.expand_dims(X_here,axis = 0)
-            #print(f"X SHAPE: {X_here.shape}")
-            Y_here = np.load(name_Y)
-            #print(f"Y SHAPE: {Y_here.shape}")
-            #Y_here = np.expand_dims(Y_here,axis = 0)
-            X[i] = X_here
-            Y[i] = Y_here
-            '''to_plot = np.mean(X_here[:,0:4], axis = 1)
-            fig, axs = plt.subplots(1,7)
-            for i in range(7):
-                axs[i].imshow(to_plot[i])
-            fig.suptitle(name_X)
-            plt.show()'''
+        for file_name in file_list:
             
-
-        '''if skip_data == 0:
-            X,Y,X_dates,Y_dates = load_data(file_name, N = N, lead_times = lead_times, rain_step = rain_step, n_bins = n_bins, keep_biggest = keep_biggest, printer = printer)
-        else:
-            X,Y = skip_data'''
-        #print("X SHAPE: ", X.shape)
-        #print("Y SHAPE: ", Y.shape)
-        self.x = torch.from_numpy(X)
-        self.y = torch.from_numpy(Y)
-
-        self.n_samples=X.shape[0]
+            if file_name[-5] == "X":
+                self.file_names.append(data_path+file_name)
+                mean = float(file_name.split("_")[0])
+                
+                self.means.append(mean)
+                
+                
+        self.means = np.array(self.means)
+        idx_sorted = np.argsort(-self.means)
+        to_keep = int(N*keep_biggest)
         
+        
+        
+        idx_to_keep = idx_sorted[:to_keep]
+        self.file_names = [self.file_names[idx] for idx in idx_sorted[:to_keep]]
+        
+        if ID == "train":
+            minimum_rain = 5
+            skipped = 0
+            try:
+                self.rainy_leadtimes = np.load(f"leadtime_sampling_N_{N}_leads_{lead_times}_spacing_{leadtime_spacing}_minimum_{minimum_rain}.npy")
+                with open(f"leadtime_sampling_N_{N}_leads_{lead_times}_spacing_{leadtime_spacing}_minimum_{minimum_rain}.txt", 'r') as f:
+                    self.file_names = [a.replace("\n","") for a in list(f.readlines())]
+                 
+                    
+            except FileNotFoundError:
+                self.rainy_leadtimes = []
+                copy_to_it = self.file_names[:]
+                for j, file_name in enumerate(copy_to_it):
+                    if j%100==0: 
+                        print(f"Progress {j} / {len(self.file_names)}")
+                        
+                    y = np.load(file_name.replace("X","Y"))
+                    rainy_leads = []
+                    
+                    for i, y_here in enumerate(y[self.leadtime_spacing-1::self.leadtime_spacing]):
+                        if i>=lead_times:
+                            break
+                        if np.sum(y_here[1:])>minimum_rain:
+                            rainy_leads.append(i)
+                        else:
+                            #print("skipping one")
+                            skipped += 1
+                    
+                    if not rainy_leads:
+                        len_before = len(self.file_names)
+                        self.file_names.remove(file_name)
+                        assert len_before-len(self.file_names) == 1
+
+                        print("SKIPPING ", file_name)
+                        
+                    else:
+                        for i in np.random.choice(rainy_leads,(lead_times-len(rainy_leads))):
+                            rainy_leads.append(i)
+                        rainy_leads = np.array(rainy_leads)
+                        assert len(rainy_leads) == lead_times
+                        self.rainy_leadtimes.append(rainy_leads)
+                
+                assert len(self.rainy_leadtimes) == len(self.file_names)
+                np.save(f"leadtime_sampling_N_{N}_leads_{lead_times}_spacing_{leadtime_spacing}_minimum_{minimum_rain}.npy",np.array(self.rainy_leadtimes))
+                with open(f"leadtime_sampling_N_{N}_leads_{lead_times}_spacing_{leadtime_spacing}_minimum_{minimum_rain}.txt", 'w') as f:
+                    for item in self.file_names:
+                        f.write(f"{item}\n")
+        '''n_uniques = []
+        for leads in self.rainy_leadtimes:
+            unique = np.unique(leads)
+            n_uniques.append(len(unique))
+        plt.hist(n_uniques, bins = lead_times)
+        plt.title("Number of unique leadtimes")
+        plt.show()
+        a = {}
+        for lead in range(lead_times):
+            a[lead] = len(np.where(self.rainy_leadtimes==lead)[0])
+        print(a)
+        plt.hist(self.rainy_leadtimes.reshape(-1), bins = lead_times)
+        plt.title("resampling of leadtimes")
+        plt.show()'''
+        
+        self.n_samples = len(self.file_names)
+                
     def __getitem__(self, index):
         # allows indexing dataset[0]
-        return self.x[index], self.y[index]
+        name_x = self.file_names[index]
+        name_y = name_x.replace("X","Y")
+        x = np.load(name_x)
+       
+        y = np.load(name_y)
+
+        y = y[self.leadtime_spacing-1::self.leadtime_spacing]
+
+        x = torch.from_numpy(x)
+        y = torch.from_numpy(y)
+        if self.ID == "train":
+            
+            return x, y, self.rainy_leadtimes[index]
+        return x, y
         
     def __len__(self):
         # Will allow len(data)
         return self.n_samples
 
 if __name__=="__main__":
-    dataset = MetNetDataset("combination_all_pn157.h5", N = 1000)
-    dataloader = DataLoader(dataset=dataset,batch_size=4,shuffle=True)
-
-    eps = 2
-    tot_samps = len(dataset)
-    n_iterations = math.ceil(tot_samps/4)
-    print(tot_samps, n_iterations)
-    for epoch in range(eps):
-        for i, (inputs,labels) in enumerate(dataloader):
-            if (i+1)%5 == 0:
-                print(f"epoch {epoch}/{eps}, step {i+1}/{n_iterations}, input {inputs.shape}")
-
-
-
-    print("DONE NOW")
-    input()
-    dataiter = iter(dataloader)
-
-    data = dataiter.next()
-    features, labels = data
-    print(features.shape, labels.shape)
+    test_data = MetNetDataset("train", N = None, keep_biggest = 1)
+    n_to_plot = 128
+    '''BINS = np.zeros((n_to_plot,))
+    
+    for j,(x,y) in enumerate(test_data):
+        if j%100==0: print(f"Progress {j}/{len(test_data)}")
+        for i in range(n_to_plot):
+            BINS[i] += np.sum(y[0,i].numpy())
+    np.save(f"bin_count_no_keep_biggest.npy",BINS)'''
+            
+    BINS1 = np.load("bin_count.npy")
+    BINS2 = np.load("bin_count_no_keep_biggest.npy")
+    N_1 = np.sum(BINS1)
+    N_2 = np.sum(BINS2) 
+    BINS1 /= N_1
+    BINS2 /= N_2
+    for i,a in enumerate(BINS1):
+        if a==0:
+            BINS1[i] = BINS1[i-1] 
+    for i,a in enumerate(BINS2):
+        if a==0:
+            BINS2[i] = BINS2[i-1]       
+    
+    
+    
+    #BINS = np.load("bin_count_no_keep_biggest.npy")
+    
+    rain_mm = np.arange(128)*0.2
+    plt.plot(rain_mm,100*BINS1, label =r"$Y_{15\%}$")
+    plt.plot(rain_mm,100*BINS2, label =r"$Y_{100\%}$")
+    plt.legend()
+    plt.yscale("log")
+    plt.xlabel("Rain rate [mm/h]")
+    plt.ylabel("Percentage [%]")
+    plt.title("Percentage of pixels per rain rate")
+    plt.show()
+    
+    plt.plot(rain_mm, 100*BINS1/BINS2, label =r"$\frac{bin_{15}}{bin_{100}}$")
+    plt.legend()
+    #plt.yscale("log")
+    plt.xlabel("Rain rate [mm/h]")
+    plt.ylabel("Percentage difference [%]")
+    plt.title("Impact of keeping 15% of data")
+    plt.show()
+    
+    

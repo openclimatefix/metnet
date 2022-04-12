@@ -39,14 +39,14 @@ wandb.login()
 #PATH_cp = "epoch=430-step=22842.ckpt"
 # 
 PATH_cp = "8leadtimessecond8h.ckpt"
-PATH_cp = "epoch=242-step=16766.ckpt"
+#PATH_cp = "epoch=242-step=16766.ckpt"
 
 model = MetNetPylight.load_from_checkpoint(PATH_cp)
-model.keep_biggest = 0.1
+#model.keep_biggest = 0.1
 #model.batch_size = 8
-model.n_samples = None
+#model.n_samples = None
 
-model.plot_every = None
+#model.plot_every = None
 #MetNetPylight expects already preprocessed data. Can be change by uncommenting the preprocessing step.
 #print(model)
 model.f1s = [0 for _ in range(model.forecast_steps)]
@@ -54,7 +54,8 @@ model.f1s_control = [0 for _ in range(model.forecast_steps)]
 model.f1_count = 0
 model.avg_y_img = [0 for _ in range(model.forecast_steps)]
 model.avg_y_hat_img = [0 for _ in range(model.forecast_steps)]
-
+model.skipped = 0
+model.not_skipped = 0
 
     
 wandb_logger = WandbLogger(project="lit-wandb")

@@ -17,6 +17,7 @@ from sklearn.metrics import f1_score
 import PIL
 import matplotlib as mpl
 from matplotlib import colors
+from metnet.layers.utils import get_conv_layer
 
 class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
     def __init__(
@@ -113,7 +114,20 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
                 for _ in range(num_att_layers)
             ]
         )
-
+        '''conv2d = get_conv_layer(conv_type="standard")
+        self.conv_agg = nn.Sequential(
+            conv2d(hidden_dim, hidden_dim, kernel_size=(28,1), padding="same"),
+            conv2d(hidden_dim, hidden_dim, kernel_size=(1,28), padding="same"),
+            conv2d(hidden_dim, hidden_dim, kernel_size=(3,3), padding=1),
+            #nn.MaxPool2d((2, 2), stride=2),
+            # antialiased_cnns.BlurPool(160, stride=2) if antialiased else nn.Identity(),
+            nn.BatchNorm2d(hidden_dim),
+            conv2d(hidden_dim, hidden_dim, kernel_size=(28,1)),
+            conv2d(hidden_dim, hidden_dim, kernel_size=(1,28)),
+            conv2d(hidden_dim, hidden_dim, kernel_size=(3,3), padding=1),           
+            #nn.MaxPool2d((2, 2), stride=2),
+            # antialiased_cnns.BlurPool(output_channels, stride=2) if antialiased else nn.Identity(),
+        )'''
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
         self.double()
         
@@ -155,9 +169,10 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         #print("\n shape after temp enc: ", state.shape)
 
         agg = self.temporal_agg(state)
+        #agg = self.conv_agg(state)
         #plot_channels(x, 1, tit_add = "after agg")
         #print("\n shape after temporal_agg: ", agg.shape)
-        return state
+        return agg
     
     def forward(self, imgs,lead_time = 0, lead_times = []):
         """It takes a rank 5 tensor
@@ -181,6 +196,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         #plot_channels(out, 1, tit_add = "after softmax")
         #plot_bins(out[0], " after head",soft[0], "after softmax")
         return out
+        
 
     def training_step(self, batch, batch_idx):
         

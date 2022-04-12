@@ -7,11 +7,12 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 from pytorch_lightning.callbacks import DeviceStatsMonitor
 from pytorch_lightning import seed_everything
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import time
 
 wandb.login()
 
-'''model = MetNetPylight(
+model = MetNetPylight(
         hidden_dim=256, #384 original paper
         forecast_steps=8, #240 original paper
         input_channels=15, #46 original paper, hour/day/month = 3, lat/long/elevation = 3, GOES+MRMS = 40
@@ -28,10 +29,10 @@ wandb.login()
         att_heads=16,
         keep_biggest = 0.15,
         leadtime_spacing = 3, #1: 5 minutes, 3: 15 minutes
-        )'''
+        )
 #PATH_cp = "/proj/berzelius-2022-18/users/sm_valfa/metnet_pylight/metnet/epoch=430-step=22842.ckpt"
-PATH_cp = "/proj/berzelius-2022-18/users/sm_valfa/metnet_pylight/metnet/lit-wandb/jbd0j048/checkpoints/epoch=210-step=14558.ckpt"
-model = MetNetPylight.load_from_checkpoint(PATH_cp)
+#PATH_cp = "/proj/berzelius-2022-18/users/sm_valfa/metnet_pylight/metnet/lit-wandb/jbd0j048/checkpoints/epoch=210-step=14558.ckpt"
+#model = MetNetPylight.load_from_checkpoint(PATH_cp)
 print(model)
 
 #model.n_samples = 2000
@@ -46,7 +47,7 @@ wandb_logger = WandbLogger(project="lit-wandb")
 
 
 
-trainer = pl.Trainer(num_sanity_val_steps=2, track_grad_norm = 2, max_epochs=1000, gpus=-1,log_every_n_steps=50, logger = wandb_logger,strategy="ddp", early_stop_callback=True)
+trainer = pl.Trainer(num_sanity_val_steps=2, track_grad_norm = 2, max_epochs=1000, gpus=-1,log_every_n_steps=50, logger = wandb_logger,strategy="ddp", callbacks=[EarlyStopping(monitor="val_loss", mode="min")])
 start_time = time.time()
 
 trainer.fit(model)
