@@ -83,7 +83,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         self.keep_biggest = keep_biggest
         self.weights = None
         self.leadtime_spacing = leadtime_spacing
-        
+        self.testing = False
         if str(self.device)== "cuda:0":
             self.printer = True
         else:
@@ -162,12 +162,13 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
 
         # Temporal Encoder
         #_, state = self.temporal_enc(self.drop(x))
-        dropped = self.drop(x)
-        _, state = self.temporal_enc(dropped)
+        if not self.testing:
+            x = self.drop(x)
+        _, state = self.temporal_enc(x)
         embedded = self.position_embedding(state)
         #plot_channels(state, 1, tit_add = "after temporal_enc")
         #print("\n shape after temp enc: ", state.shape)
-
+        #return state #REMOVEMOMROEMREOMREOMREORMERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
         agg = self.temporal_agg(state)
         #agg = self.conv_agg(state)
         #plot_channels(x, 1, tit_add = "after agg")
@@ -230,25 +231,50 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         lead_times = list(range(self.forecast_steps))
         
         loss = 0
-        
+        f1_val = 0
+        f1_count = 0
         L = CrossEntropyLoss()
         for lead_time in lead_times:
             y_hat = self(x.float(),lead_time)
             
-            
             loss += L(y_hat, y[:,lead_time])
-
+            '''
+            # F1 score:
+            softed = torch.softmax(y_hat, dim=1)
+            n_soft = softed.shape[0]
+            rainy = torch.sum(y_hat[:,1:], dim=1)
+            idx_rain = [torch.where(rainy[j]>y_hat[j,0]) for j in range(n_soft)]
+            for i, soft in enumerate(softed):
+                if len(idx_rain[i])==0:
+                    continue
+                else:
+                    f1_count +=1
+                truth = torch.sum(y[i,lead_time,1:],dim = 0)
+                pred = torch.zeros(truth.shape)
+                idx_here = idx_rain[i]
+                pred[idx_here] = 1
+                
+                truth_flat = torch.flatten(truth)
+                pred_flat = torch.flatten(pred)
+                print("SUM FLAT: ", torch.sum(truth_flat), torch.sum(pred_flat))
+                
+                f1_here = f1_score(truth_flat.cpu().detach().numpy(),pred_flat.cpu().detach().numpy(), zero_divison=0)
+                
+                f1_val += f1_here'''
+                
             '''y_img, y_hat_img = thresh_imgs(y[0,lead_time], y_hat[0], thresh_bin = 1)
             if log_img:
                 self.logger.experiment.log({f"val_{lead_time}":[wandb.Image(y_img.cpu(), caption=f"y leadtime {lead_time}"), wandb.Image(y_hat_img.cpu(), caption=f"y_hat leadtime {lead_time}")]})'''
+        
+        
         loss /= self.forecast_steps
-        
+        #f1_val /= f1_count
         self.log("validation/loss_epoch", loss, on_step=False, on_epoch=True)
-        
-        return {"loss": loss}
+        #self.log("validation/f1_score", f1_val, on_step=False, on_epoch=True)
+        return {"loss": loss} #, "f1_val": f1_val
         
     def test_step(self, batch, batch_idx):
-        x,y = batch
+        x,y, persistence = batch
         
         
         
@@ -261,21 +287,57 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
             loss += L(y_hat_here, y[:,lead_time])
             y_hat[:,lead_time] = y_hat_here
         loss /= self.forecast_steps
-        self.log("test/loss_epoch", loss, on_step=False, on_epoch=True)
+        self.log("test/loss_epoch", loss, on_step=True, on_epoch=True)
         # ---------- calculate test_loss ---------- 
         
      
-        
-        thresh = 1
-        no_rain = torch.zeros(y[0,0].shape, device = self.device)
-        no_rain[0] = 1
 
         
+        #  ---------- calculate f1_score ---------- 
+        self.probabillity_thresh = 0
+        thresh = self.thresh
+        rain_y = torch.sum(y[:,:,thresh:], dim=2)
+        softed = torch.softmax(y_hat,dim=2)
+        no_rain_y_hat = torch.sum(softed[:,:, 0:thresh], dim=2)
+        rain_y_hat = torch.sum(softed[:,:,thresh:], dim=2)
+        threshed_y_hat = torch.zeros(rain_y_hat.shape)
+        idx_above = torch.where(rain_y_hat>self.probabillity_thresh)
+        threshed_y_hat[idx_above] = 1
+        
+        
+        
+        
+        for sample in range(y.shape[0]):
             
+            after_five = persistence[sample]
+            after_five = torch.sum(after_five[thresh:],dim=0)
+            after_five = torch.flatten(after_five).cpu().detach().numpy()
             
-        '''    
-        #for i in range(y.shape[0]):
-        for i in range(1):
+            f1_here = []
+            for lead_time in range(self.forecast_steps):
+                if torch.sum(rain_y[sample,lead_time])<5:
+                    self.skipped += 1
+                    continue
+                truth = torch.flatten(rain_y[sample,lead_time]).cpu().detach().numpy()
+                pred = torch.flatten(threshed_y_hat[sample,lead_time]).cpu().detach().numpy()
+                
+                f1 = f1_score(truth, pred)
+                f1_after_five = f1_score(truth, after_five)
+                f1_here.append((f1,f1_after_five))
+                self.f1s[lead_time].append(f1)
+                self.f1s_control[lead_time].append(f1_after_five)
+                
+            #plot_probabillity(y[sample],softed[sample],[kk for kk in range(0,self.forecast_steps,self.forecast_steps//3)],increment = 0.2, spacing = self.leadtime_spacing, f1_scores = f1_here)
+        
+        
+        
+        
+        
+        #  ---------- calculate f1_score ---------- 
+            
+         
+        #for i in range(y.shape[0]): #REWRITE
+        '''for i in range(1):
             temp3 = x[i,-1,0:4].cpu().numpy()
             temp3 = np.mean(temp3, axis = 0)
             temp3 = (temp3 + np.min(temp3))/(np.max(temp3)-np.min(temp3))
@@ -287,14 +349,15 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
             imgs = []
             capts = []
             for lead_time in range(0,self.forecast_steps,10):
-                
+                if torch.sum(y[i,lead_time,0])>28*28-5:
+                    continue
                 y_img, y_hat_img, f1,f1_control = thresh_imgs(y[i,lead_time], y_hat[i,lead_time], no_rain, thresh_bin = thresh)
                 self.avg_y_img[lead_time]+=(torch.mean(y_img.cpu()))
                 self.avg_y_hat_img[lead_time]+=(torch.mean(y_hat_img.cpu()))
                 self.f1s[lead_time] += f1
                 self.f1s_control[lead_time] += f1_control
                 
-                if lead_time in list(range(0,60,10)):
+                if lead_time in list(range(0,self.forecast_steps,self.forecast_steps//3)):
                     
                     temp1 = y_img.cpu().numpy()
                     pil_im_y = PIL.Image.fromarray(np.uint8(temp1)*255)
@@ -321,10 +384,10 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
                     plt.show()
             self.logger.log_image(key=f"val_{lead_time}", images=imgs, caption = capts)
         '''
-        for i in range(x.shape[0]):
+        '''for i in range(x.shape[0]):
             softed = torch.softmax(y_hat[i],dim=1)
-            plot_probabillity(y[i],softed,[kk for kk in range(0,self.forecast_steps,self.forecast_steps//3)],increment = 0.2, spacing = self.leadtime_spacing)
-            #plot_categories(y[i,0],softed,increment = 0.2)
+            plot_probabillity(y[i],softed,[kk for kk in range(0,self.forecast_steps,self.forecast_steps//3)],increment = 0.2, spacing = self.leadtime_spacing)'''
+        #plot_categories(y[i,0],softed,increment = 0.2)
         
         #plot bins:
         '''for i in range(x.shape[0]):
@@ -363,22 +426,27 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         table = wandb.Table(data = hist_scores, columns = ["lead_times"])
         wombo.log({"leadtimes_histogram": wombo.plot.histogram(table, "Lead times", title="Lead times histogram")})'''
         outs = tuple([x["loss"] for x in val_step_outputs])
-
+        #outs_f1 = tuple([x["f1_val"] for x in val_step_outputs])
         avg_val_loss = torch.tensor(outs, device = self.device).mean()
-
-        return {"val_loss":avg_val_loss}
+        #avg_val_f1 = torch.tensor(outs, device = self.device).mean()
+        return {"val_loss":avg_val_loss} #, "val_f1_avg": avg_val_f1}
     def test_epoch_end(self,test_step_outputs):
-        f1mean = np.array(self.f1s)/self.f1_count
-        f1_control_mean = np.array(self.f1s_control)/self.f1_count
-        plt.plot(f1mean,"b", label="f1 meaned")
-        plt.plot(f1_control_mean,"--g", label="no rain controll")
+        f1_mean = [ np.mean(f1s) for f1s in self.f1s]
+        lens = [len(f1s) for f1s in self.f1s]
+        print(f"Skipped {self.skipped} / {self.skipped + sum(lens)}")
+        f1_mean = np.array(f1_mean)
+        f1_control_mean = np.array([ np.mean(f1s) for f1s in self.f1s_control])
+        np.save(f"f1_threshed_{self.probabillity_thresh}_N_{sum(lens)}_thresh_{self.thresh}.npy",f1_mean)
+        np.save(f"f1_control_N_{sum(lens)}_thresh_{self.thresh}.npy",f1_control_mean)
+        plt.plot(f1_mean,"b", label="f1 meaned")
+        plt.plot(f1_control_mean,"--g", label="persistence")
         plt.legend()
-        plt.title(f"f1-scores over leadtimes")
+        plt.title(f"f1-scores, P(rate>0.2)>{self.probabillity_thresh}")
         plt.xlabel("lead_time")
         plt.ylabel("f1")
         plt.show()
         
-        y_means = np.array(self.avg_y_img)/self.f1_count
+        '''y_means = np.array(self.avg_y_img)/self.f1_count
         y_hat_means = np.array(self.avg_y_hat_img)/self.f1_count
         plt.plot(y_means,"b", label="y means")
         plt.plot(y_hat_means,"g", label="y_hat means")
@@ -386,7 +454,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         plt.title(f"y and yhat above threshhold at different leadtimes")
         plt.xlabel("lead_time")
         plt.ylabel("mean")
-        plt.show()
+        plt.show()'''
         
     def configure_optimizers(self):
         optimizer = optim.SGD(self.parameters(),lr=self.learning_rate, momentum = self.momentum)
@@ -395,7 +463,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
     def setup(self, stage = None):
         self.train_data = metnet_dataloader.MetNetDataset("train", N = self.n_samples , keep_biggest = self.keep_biggest, leadtime_spacing = self.leadtime_spacing, lead_times = self.forecast_steps)
         self.val_data = metnet_dataloader.MetNetDataset("val", N = None, keep_biggest = 1, leadtime_spacing = self.leadtime_spacing)
-        self.test_data = metnet_dataloader.MetNetDataset("test", N = self.n_samples, keep_biggest = 1, leadtime_spacing = self.leadtime_spacing)
+        self.test_data = metnet_dataloader.MetNetDataset("test", N = self.n_samples, keep_biggest = 0.1, leadtime_spacing = self.leadtime_spacing)
         '''if self.train_data.weights is not None:
 
             self.weights = self.train_data.weights'''
@@ -406,34 +474,7 @@ class MetNetPylight(pl.LightningModule, PyTorchModelHubMixin):
         
         print(f"Validation data samples = {len(self.val_data)}")
         print(f"Test data samples = {len(self.test_data)}")
-        #print("SHAPES: ", self.train_data.shape, self.val_data.shape, self.test_data.shape)
-        #print([i.split("/")[-1][0:6] for i in self.train_data.file_names])
-        print("FIXING IMBALANCE")
-        self.class_balancing = torch.from_numpy(np.load("/proj/berzelius-2022-18/users/sm_valfa/metnet_pylight/metnet/class_imbalance.npy")).to(self.device)
-        self.class_balancing_half = torch.from_numpy(np.load("/proj/berzelius-2022-18/users/sm_valfa/metnet_pylight/metnet/class_imbalance0.15.npy")).to(self.device)
         
-        a = torch.divide(self.class_balancing, self.class_balancing_half).cpu().numpy()
-        a = np.nan_to_num(a)
-        b = np.arange(0,len(a))
-        idx = np.where(a!=0)
-        #print(len(a))
-        #print(a)
-        #plt.plot(self.class_balancing.cpu(), "--r")
-        '''plt.scatter(b[idx],a[idx])
-        plt.title("")
-        #plt.yscale("log")
-        plt.show()'''
-        self.rain_bins = torch.zeros((self.output_channels,))
-        '''for i, batch in enumerate(self.train_data):
-            x,y = batch
-            
-            self.rain_bins += torch.sum(y.cpu(),dim = [0,1,3,4])
-            if i%50==0: 
-                print(f"{i}/{len(self.train_data)}")
-        np.save(f"/proj/berzelius-2022-18/users/sm_valfa/metnet_pylight/metnet/class_imbalance{self.keep_biggest}.npy",self.rain_bins.numpy())
-        plt.plot(self.rain_bins)
-        plt.yscale("log")
-        plt.show()'''
         
     def train_dataloader(self):
         train_loader = DataLoader(dataset=self.train_data,batch_size=self.batch_size, num_workers =  self.workers, shuffle = True)
@@ -463,23 +504,23 @@ def thresh_imgs(y, y_hat, after_five, thresh_bin = 1):
     
     y_below = torch.sum(y[0:thresh_bin], dim=0)
     y_above = torch.sum(y[thresh_bin:], dim=0)
-    y_outcome = torch.ones((w, h))
+    y_outcome = torch.zeros((w, h))
     y_idx_less_rain = torch.where(y_below<y_above)
-    y_outcome[y_idx_less_rain] = 0
+    y_outcome[y_idx_less_rain] = 1
     
     after_five_below = torch.sum(after_five[0:thresh_bin], dim=0)
     after_five_above = torch.sum(after_five[thresh_bin:], dim=0)
-    after_five_outcome = torch.ones((w, h))
+    after_five_outcome = torch.zeros((w, h))
     after_five_idx_less_rain = torch.where(after_five_below<after_five_above)
-    after_five_outcome[after_five_idx_less_rain] = 0
+    after_five_outcome[after_five_idx_less_rain] = 1
     
     
     y_hat_soft = torch.softmax(y_hat,dim=0)
     y_hat_below = torch.sum(y_hat_soft[0:thresh_bin], dim=0)
     y_hat_above = torch.sum(y_hat_soft[thresh_bin:], dim=0)
-    y_hat_outcome = torch.ones((w, h))
+    y_hat_outcome = torch.zeros((w, h))
     y_hat_idx_less_rain = torch.where(y_hat_below<y_hat_above)
-    y_hat_outcome[y_hat_idx_less_rain] = 0
+    y_hat_outcome[y_hat_idx_less_rain] = 1
     
     a = torch.flatten(y_outcome)
     b = torch.flatten(y_hat_outcome)
@@ -488,8 +529,8 @@ def thresh_imgs(y, y_hat, after_five, thresh_bin = 1):
     b = b.cpu().detach().numpy()
     control = control.cpu().detach().numpy()
     
-    f1 = f1_score(a, b)
-    f1_control = f1_score(a,control)
+    f1 = f1_score(a, b, zero_division = 0)
+    f1_control = f1_score(a,control, zero_division = 0)
 
     
     return y_outcome, y_hat_outcome, f1, f1_control
@@ -604,7 +645,7 @@ def plot_categories(y,y_hat,increment = 0.2):
     ax[1].set_title("Predicted rain")
     plt.show()
     
-def plot_probabillity(y,y_hat,lead_times ,increment = 0.2,spacing = 1):
+def plot_probabillity(y,y_hat,lead_times ,increment = 0.2,spacing = 1, f1_scores = []):
     #accepts y.shape = (leads, bins,w,h)
     
     _, _, w, h = y.shape
@@ -612,7 +653,7 @@ def plot_probabillity(y,y_hat,lead_times ,increment = 0.2,spacing = 1):
     
     
     bounds = [0, 0.2, 1,3]
-    prob_bounds = [0, 0.2, 0.4, 0.6, 0.8, 1]
+    prob_bounds = [0, 0.25, 0.5,  0.75, 1]
     
     
     ii = np.arange(0,28)
@@ -640,7 +681,7 @@ def plot_probabillity(y,y_hat,lead_times ,increment = 0.2,spacing = 1):
         
         ax[j,0].set_title(f"Lead time:{(lead_time*5+5)*spacing} min")
         im2 = ax[j,1].contourf(xx,yy,zz_hat,prob_bounds,cmap = "Greens")
-        ax[j,1].set_title(f"Lead time:{(lead_time*5+5)*spacing} min")
+        ax[j,1].set_title(f"Lead time:{(lead_time*5+5)*spacing} min, f1: {round(f1_scores[lead_time][0],3)}")
         ax[j,0].get_xaxis().set_visible(False)
         ax[j,0].get_yaxis().set_visible(False)
         ax[j,1].get_xaxis().set_visible(False)

@@ -8,6 +8,26 @@ import wandb
 from pytorch_lightning.callbacks import DeviceStatsMonitor
 from pytorch_lightning import seed_everything
 import time
+import numpy as np
+import matplotlib.pyplot as plt
+
+if False:
+    print("hej")
+    N = 3606
+    prob_threshes = [0, 0.1,0.2,0.3, 0.4, 0.5]
+    control = np.load(f"f1_control_N_{N}.npy")
+    fig, ax = plt.subplots(1,1)
+    ax.plot(control, label="persistence")
+    for p in prob_threshes:
+        f1s  = np.load(f"f1_threshed_{p}_N_{N}.npy")
+        ax.plot(f1s, label=f"P(rate>=0.2)>{p}")
+       
+    fig.suptitle("Different probabillity thresholds for precipitation")
+    ax.set_xlabel("Lead time")
+    ax.set_ylabel("F1")
+    ax.legend()
+    plt.show()
+      
 
 wandb.login()
 
@@ -38,20 +58,23 @@ wandb.login()
 #PATH_cp = "epoch=33-step=3569.ckpt"
 #PATH_cp = "epoch=430-step=22842.ckpt"
 # 
-PATH_cp = "8leadtimessecond8h.ckpt"
+#PATH_cp = "8leadtimessecond8h.ckpt"
 #PATH_cp = "epoch=242-step=16766.ckpt"
+PATH_cp = "fullrun_1.ckpt"
 
 model = MetNetPylight.load_from_checkpoint(PATH_cp)
-#model.keep_biggest = 0.1
-#model.batch_size = 8
-#model.n_samples = None
+model.keep_biggest = 0.15
+model.thresh = 1
+model.batch_size = 8
+model.n_samples = None
+model.testing = True
 
 #model.plot_every = None
 #MetNetPylight expects already preprocessed data. Can be change by uncommenting the preprocessing step.
 #print(model)
-model.f1s = [0 for _ in range(model.forecast_steps)]
-model.f1s_control = [0 for _ in range(model.forecast_steps)]
-model.f1_count = 0
+model.f1s = [[] for _ in range(model.forecast_steps)]
+model.f1s_control = [[] for _ in range(model.forecast_steps)]
+model.f1_count = [0 for _ in range(model.forecast_steps)]
 model.avg_y_img = [0 for _ in range(model.forecast_steps)]
 model.avg_y_hat_img = [0 for _ in range(model.forecast_steps)]
 model.skipped = 0

@@ -101,6 +101,7 @@ class MetNetDataset(Dataset):
         plt.title("resampling of leadtimes")
         plt.show()'''
         
+            
         self.n_samples = len(self.file_names)
                 
     def __getitem__(self, index):
@@ -110,7 +111,7 @@ class MetNetDataset(Dataset):
         x = np.load(name_x)
        
         y = np.load(name_y)
-
+        persistence = y[0]
         y = y[self.leadtime_spacing-1::self.leadtime_spacing]
 
         x = torch.from_numpy(x)
@@ -118,6 +119,8 @@ class MetNetDataset(Dataset):
         if self.ID == "train":
             
             return x, y, self.rainy_leadtimes[index]
+        if self.ID == "test":
+            return x, y, persistence
         return x, y
         
     def __len__(self):
