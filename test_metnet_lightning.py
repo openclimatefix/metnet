@@ -12,6 +12,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if False:
+    
+    thresh = 1
+    control = np.load(f"f1_control_thresh_{thresh}.npy")
+    fig, ax = plt.subplots(1,1)
+    ax.plot(control, label="persistence")
+    print(control)
+    f1s  = np.load(f"f1_threshed_0.5_thresh_{thresh}.npy")
+    ax.plot(f1s, label=f"No aggregation model")
+    print(f1s)
+    fig.suptitle(f"F1-score for rainfall threshed at {round(thresh*0.2,3)} mm/h")
+    
+    ax.set_xlabel("Lead time")
+    ax.set_ylabel("F1")
+    ax.legend()
+    plt.show()
+if False:
     print("hej")
     N = 3606
     prob_threshes = [0, 0.1,0.2,0.3, 0.4, 0.5]
@@ -61,17 +77,30 @@ wandb.login()
 #PATH_cp = "8leadtimessecond8h.ckpt"
 #PATH_cp = "epoch=242-step=16766.ckpt"
 PATH_cp = "fullrun_1.ckpt"
+#PATH_cp = "best_60_leadtime.ckpt"
+#PATH_cp = "best_single_leadtime.ckpt"
+#PATH_cp = "no agg network.ckpt"
+
 
 model = MetNetPylight.load_from_checkpoint(PATH_cp)
-model.keep_biggest = 0.15
+#model.forecast_steps=8
+#model.leadtime_spacing = 3
+#model.keep_biggest = 0.15
 model.thresh = 1
 model.batch_size = 8
 model.n_samples = None
 model.testing = True
-
+print(model.forecast_steps)
 #model.plot_every = None
 #MetNetPylight expects already preprocessed data. Can be change by uncommenting the preprocessing step.
 #print(model)
+model.TPs = np.zeros(model.forecast_steps)
+model.FNs = np.zeros(model.forecast_steps)
+model.FPs = np.zeros(model.forecast_steps)
+model.TPs_control = np.zeros(model.forecast_steps)
+model.FNs_control = np.zeros(model.forecast_steps)
+model.FPs_control = np.zeros(model.forecast_steps)
+
 model.f1s = [[] for _ in range(model.forecast_steps)]
 model.f1s_control = [[] for _ in range(model.forecast_steps)]
 model.f1_count = [0 for _ in range(model.forecast_steps)]
