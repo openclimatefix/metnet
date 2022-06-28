@@ -109,13 +109,6 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
             if upsample_method != "interp"
             else total_number_of_conv_blocks
         )
-        # TODO Only add this conditioning if adding to ConvLSTM
-        # total_number_of_conv_blocks += num_input_timesteps
-        self.ct = ConditionWithTimeMetNet2(
-            forecast_steps,
-            total_blocks_to_condition=total_number_of_conv_blocks,
-            hidden_dim=lead_time_features,
-        )
 
         # ConvLSTM with 13 timesteps, 128 LSTM channels, 18 encoder blocks, 384 encoder channels,
         self.conv_lstm = ConvLSTM(
@@ -199,6 +192,18 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
             ]
         )
 
+        self.time_conditioners = nn.ModuleList()
+        # Go through each set of blocks and add conditioner
+        # Context Stack
+        for layer in self.context_block_one:
+            self.time_conditioners.append(ConditionWithTimeMetNet2(forecast_steps=forecast_steps, hidden_dim=lead_time_features, num_feature_maps=layer.output_channels))
+        for layer in self.context_blocks:
+            self.time_conditioners.append(ConditionWithTimeMetNet2(forecast_steps=forecast_steps, hidden_dim=lead_time_features, num_feature_maps=layer.output_channels))
+        if self.upsample_method != "interp":
+            for layer in self.upsample:
+                self.time_conditioners.append(ConditionWithTimeMetNet2(forecast_steps=forecast_steps, hidden_dim=lead_time_features, num_feature_maps=layer.output_channels))
+        for layer in self.residual_block_three:
+            self.time_conditioners.append(ConditionWithTimeMetNet2(forecast_steps=forecast_steps, hidden_dim=lead_time_features, num_feature_maps=layer.output_channels))
         # Last layers are a Conv 1x1 with 4096 channels then softmax
         self.head = nn.Conv2d(upsampler_channels, output_channels, kernel_size=(1, 1))
 
@@ -216,7 +221,6 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         # Compute all timesteps, probably can be parallelized
         x = self.image_encoder(x)
         # Compute scale and bias
-        scale_and_bias = self.ct(x, lead_time)
         block_num = 0
 
         # ConvLSTM
@@ -226,11 +230,11 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
 
         # Context Stack
         for layer in self.context_block_one:
-            scale, bias = scale_and_bias[:, block_num]
+            scale, bias = self.time_conditioners[block_num](res, lead_time)
             res = layer(res, scale, bias)
             block_num += 1
         for layer in self.context_blocks:
-            scale, bias = scale_and_bias[:, block_num]
+            scale, bias = self.time_conditioners[block_num](res, lead_time)
             res = layer(res, scale, bias)
             block_num += 1
 
@@ -243,13 +247,13 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
             res = self.upsampler_changer(res)
         else:
             for layer in self.upsample:
-                scale, bias = scale_and_bias[:, block_num]
+                scale, bias = self.time_conditioners[block_num](res, lead_time)
                 res = layer(res, scale, bias)
                 block_num += 1
 
         # Shallow network
         for layer in self.residual_block_three:
-            scale, bias = scale_and_bias[:, block_num]
+            scale, bias = self.time_conditioners[block_num](res, lead_time)
             res = layer(res, scale, bias)
             block_num += 1
 
@@ -267,7 +271,7 @@ class ConditionWithTimeMetNet2(nn.Module):
         self,
         forecast_steps: int,
         hidden_dim: int,
-        total_blocks_to_condition: int,
+        num_feature_maps: int
     ):
         """
         Compute the scale and bias factors for conditioning convolutional blocks on the forecast time
@@ -275,28 +279,32 @@ class ConditionWithTimeMetNet2(nn.Module):
         Args:
             forecast_steps: Number of forecast steps
             hidden_dim: Hidden dimension size
-            total_blocks_to_condition: Total number of scale, biases that are needed to be computed
+            num_feature_maps: Max number of channels in the blocks, to generate enough scale+bias values
+                This means extra values will be generated, but keeps implementation simpler
         """
         super().__init__()
         self.forecast_steps = forecast_steps
-        self.total_blocks = total_blocks_to_condition
+        self.num_feature_maps = num_feature_maps
         self.lead_time_network = nn.ModuleList(
             [
                 nn.Linear(in_features=forecast_steps, out_features=hidden_dim),
-                nn.Linear(in_features=hidden_dim, out_features=total_blocks_to_condition * 2),
+                nn.Linear(in_features=hidden_dim, out_features=2* num_feature_maps),
             ]
         )
 
-    def forward(self, x: torch.Tensor, timestep: int) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, timestep: int) -> [torch.Tensor, torch.Tensor]:
         """
         Get the scale and bias for the conditioning layers
+
+        From the FiLM paper, each feature map (i.e. channel) has its own scale and bias layer, so needs
+        a scale and bias for each feature map to be generated
 
         Args:
             x: The Tensor that is used
             timestep: Index of the timestep to use, between 0 and forecast_steps
 
         Returns:
-            Tensor of shape (Batch, blocks, 2)
+            2 Tensors of shape (Batch, num_feature_maps)
         """
         # One hot encode the timestep
         timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=x.dtype)
@@ -306,6 +314,6 @@ class ConditionWithTimeMetNet2(nn.Module):
             timesteps = layer(timesteps)
         scales_and_biases = timesteps
         scales_and_biases = einops.rearrange(
-            scales_and_biases, "b (block sb) -> b block sb", block=self.total_blocks, sb=2
+            scales_and_biases, "b (block sb) -> b block sb", block=self.num_feature_maps, sb=2
         )
-        return scales_and_biases
+        return scales_and_biases[:,:,0],scales_and_biases[:,:,1]

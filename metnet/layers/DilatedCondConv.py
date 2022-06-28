@@ -16,6 +16,7 @@ class DilatedResidualConv(nn.Module):
         activation: nn.Module = nn.ReLU(),
     ):
         super().__init__()
+        self.output_channels = output_channels
         self.dilated_conv_one = nn.Conv2d(
             in_channels=input_channels,
             out_channels=output_channels,
@@ -64,6 +65,7 @@ class UpsampleResidualConv(nn.Module):
         activation: nn.Module = nn.ReLU(),
     ):
         super().__init__()
+        self.output_channels = output_channels
         self.dilated_conv_one = nn.ConvTranspose2d(
             in_channels=input_channels,
             out_channels=output_channels,

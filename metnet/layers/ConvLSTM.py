@@ -131,7 +131,7 @@ class ConvLSTM(nn.Module):
             batchnorm: Whether to use batch norm
         """
         super(ConvLSTM, self).__init__()
-
+        self.output_channels = hidden_dim
         # Make sure that both `kernel_size` and `hidden_dim` are lists having len == num_layers
         kernel_size = self._extend_for_multilayer(kernel_size, num_layers)
         hidden_dim = self._extend_for_multilayer(hidden_dim, num_layers)
