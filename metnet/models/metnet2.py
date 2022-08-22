@@ -196,14 +196,38 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         # Go through each set of blocks and add conditioner
         # Context Stack
         for layer in self.context_block_one:
-            self.time_conditioners.append(ConditionWithTimeMetNet2(forecast_steps=forecast_steps, hidden_dim=lead_time_features, num_feature_maps=layer.output_channels))
+            self.time_conditioners.append(
+                ConditionWithTimeMetNet2(
+                    forecast_steps=forecast_steps,
+                    hidden_dim=lead_time_features,
+                    num_feature_maps=layer.output_channels,
+                )
+            )
         for layer in self.context_blocks:
-            self.time_conditioners.append(ConditionWithTimeMetNet2(forecast_steps=forecast_steps, hidden_dim=lead_time_features, num_feature_maps=layer.output_channels))
+            self.time_conditioners.append(
+                ConditionWithTimeMetNet2(
+                    forecast_steps=forecast_steps,
+                    hidden_dim=lead_time_features,
+                    num_feature_maps=layer.output_channels,
+                )
+            )
         if self.upsample_method != "interp":
             for layer in self.upsample:
-                self.time_conditioners.append(ConditionWithTimeMetNet2(forecast_steps=forecast_steps, hidden_dim=lead_time_features, num_feature_maps=layer.output_channels))
+                self.time_conditioners.append(
+                    ConditionWithTimeMetNet2(
+                        forecast_steps=forecast_steps,
+                        hidden_dim=lead_time_features,
+                        num_feature_maps=layer.output_channels,
+                    )
+                )
         for layer in self.residual_block_three:
-            self.time_conditioners.append(ConditionWithTimeMetNet2(forecast_steps=forecast_steps, hidden_dim=lead_time_features, num_feature_maps=layer.output_channels))
+            self.time_conditioners.append(
+                ConditionWithTimeMetNet2(
+                    forecast_steps=forecast_steps,
+                    hidden_dim=lead_time_features,
+                    num_feature_maps=layer.output_channels,
+                )
+            )
         # Last layers are a Conv 1x1 with 4096 channels then softmax
         self.head = nn.Conv2d(upsampler_channels, output_channels, kernel_size=(1, 1))
 
@@ -267,12 +291,7 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
 class ConditionWithTimeMetNet2(nn.Module):
     """Compute Scale and bias for conditioning on time"""
 
-    def __init__(
-        self,
-        forecast_steps: int,
-        hidden_dim: int,
-        num_feature_maps: int
-    ):
+    def __init__(self, forecast_steps: int, hidden_dim: int, num_feature_maps: int):
         """
         Compute the scale and bias factors for conditioning convolutional blocks on the forecast time
 
@@ -288,7 +307,7 @@ class ConditionWithTimeMetNet2(nn.Module):
         self.lead_time_network = nn.ModuleList(
             [
                 nn.Linear(in_features=forecast_steps, out_features=hidden_dim),
-                nn.Linear(in_features=hidden_dim, out_features=2* num_feature_maps),
+                nn.Linear(in_features=hidden_dim, out_features=2 * num_feature_maps),
             ]
         )
 
@@ -316,4 +335,4 @@ class ConditionWithTimeMetNet2(nn.Module):
         scales_and_biases = einops.rearrange(
             scales_and_biases, "b (block sb) -> b block sb", block=self.num_feature_maps, sb=2
         )
-        return scales_and_biases[:,:,0],scales_and_biases[:,:,1]
+        return scales_and_biases[:, :, 0], scales_and_biases[:, :, 1]
