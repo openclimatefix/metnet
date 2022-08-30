@@ -202,7 +202,6 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
                 )
             )
 
-
         self.time_conditioners = nn.ModuleList()
         # Go through each set of blocks and add conditioner
         # Context Stack
@@ -297,4 +296,3 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
 
         # Softmax for rain forecasting
         return res
-
