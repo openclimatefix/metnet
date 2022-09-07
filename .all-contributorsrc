@@ -22,6 +22,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "ValterFallenius",
+      "name": "Valter Fallenius",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21970939?v=4",
+      "profile": "https://github.com/ValterFallenius",
+      "contributions": [
+        "userTesting"
+      ]
     }
   ],
   "contributorsPerLine": 7,
