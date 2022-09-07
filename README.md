@@ -1,6 +1,6 @@
 # MetNet and MetNet-2
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 PyTorch Implementation of Google Research's MetNet for short term weather forecasting (https://arxiv.org/abs/2003.12140), inspired from https://github.com/tcapelle/metnet_pytorch/tree/master/metnet_pytorch
@@ -106,6 +106,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://www.jacobbieker.com"><img src="https://avatars.githubusercontent.com/u/7170359?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jacob Bieker</b></sub></a><br /><a href="https://github.com/openclimatefix/metnet/commits?author=jacobbieker" title="Code">💻</a></td>
     <td align="center"><a href="http://jack-kelly.com"><img src="https://avatars.githubusercontent.com/u/460756?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jack Kelly</b></sub></a><br /><a href="https://github.com/openclimatefix/metnet/commits?author=JackKelly" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/ValterFallenius"><img src="https://avatars.githubusercontent.com/u/21970939?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Valter Fallenius</b></sub></a><br /><a href="#userTesting-ValterFallenius" title="User Testing">📓</a></td>
+    <td align="center"><a href="https://github.com/terigenbuaa"><img src="https://avatars.githubusercontent.com/u/91317406?v=4?s=100" width="100px;" alt=""/><br /><sub><b>terigenbuaa</b></sub></a><br /><a href="#question-terigenbuaa" title="Answering Questions">💬</a></td>
   </tr>
 </table>
 
