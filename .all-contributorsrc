@@ -40,6 +40,15 @@
       "contributions": [
         "question"
       ]
+    },
+    {
+      "login": "NMC-DAVE",
+      "name": "Kan.Dai",
+      "avatar_url": "https://avatars.githubusercontent.com/u/26354668?v=4",
+      "profile": "https://github.com/NMC-DAVE",
+      "contributions": [
+        "question"
+      ]
     }
   ],
   "contributorsPerLine": 7,
