@@ -1,0 +1,70 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "jacobbieker",
+      "name": "Jacob Bieker",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7170359?v=4",
+      "profile": "https://www.jacobbieker.com",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "JackKelly",
+      "name": "Jack Kelly",
+      "avatar_url": "https://avatars.githubusercontent.com/u/460756?v=4",
+      "profile": "http://jack-kelly.com",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "ValterFallenius",
+      "name": "Valter Fallenius",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21970939?v=4",
+      "profile": "https://github.com/ValterFallenius",
+      "contributions": [
+        "userTesting"
+      ]
+    },
+    {
+      "login": "terigenbuaa",
+      "name": "terigenbuaa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/91317406?v=4",
+      "profile": "https://github.com/terigenbuaa",
+      "contributions": [
+        "question"
+      ]
+    },
+    {
+      "login": "NMC-DAVE",
+      "name": "Kan.Dai",
+      "avatar_url": "https://avatars.githubusercontent.com/u/26354668?v=4",
+      "profile": "https://github.com/NMC-DAVE",
+      "contributions": [
+        "question"
+      ]
+    },
+    {
+      "login": "SaileshBechar",
+      "name": "Sailesh Bechar",
+      "avatar_url": "https://avatars.githubusercontent.com/u/38445041?v=4",
+      "profile": "https://github.com/SaileshBechar",
+      "contributions": [
+        "question"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "metnet",
+  "projectOwner": "openclimatefix",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true,
+  "commitConvention": "angular"
+}
