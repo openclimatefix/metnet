@@ -1,5 +1,7 @@
 from metnet import MetNet, MetNet2
 from torchinfo import summary
+import torch
+import torch.nn.functional as F
 from ocf_datapipes.training.metnet_national import metnet_national_datapipe
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -10,10 +12,14 @@ datapipe = metnet_national_datapipe("national.yaml")
 dataloader = DataLoader(dataset=datapipe, batch_size=4, pin_memory=True, num_workers=8)
 
 class LitModel(pl.LightningModule):
-    def __init__(self, input_channels=12, center_crop_size=64, input_size=256, forecast_steps=96):
+    def __init__(self, use_metnet2: bool = False, input_channels=12, center_crop_size=64, input_size=256, forecast_steps=96, lr=1e-4):
         super().__init__()
         self.forecast_steps = forecast_steps
-        self.model = MetNet2(output_channels=1, input_channels=input_channels, center_crop_size=center_crop_size, input_size=input_size, forecast_steps=forecast_steps) # every half hour for 48 hours
+        self.lr = lr
+        if use_metnet2:
+            self.model = MetNet2(output_channels=1, input_channels=input_channels, center_crop_size=center_crop_size, input_size=input_size, forecast_steps=forecast_steps) # every half hour for 48 hours
+        else:
+            self.model = MetNet(output_channels=1, input_channels=input_channels, center_crop_size=center_crop_size, input_size=input_size, forecast_steps=forecast_steps)
 
     def forward(self, x, forecast_step):
         return self.model(x, forecast_step)
@@ -29,7 +35,7 @@ class LitModel(pl.LightningModule):
         return loss / self.forecast_steps
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=1e-4)
+        return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
 batch = next(iter(datapipe))
 input_channels = batch[0].shape[1] # [Time, Channel, Width, Height] for now assume square
