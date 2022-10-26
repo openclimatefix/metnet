@@ -18,12 +18,6 @@ input_data:
       - dswrf
       - prate
       - r
-      - sde
-      - si10
-      - vis
-      - lcc
-      - mcc
-      - hcc
     nwp_image_size_pixels_height: 128
     nwp_image_size_pixels_width: 128
     nwp_zarr_path: /mnt/storage_ssd_8tb/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/NWP/UK_Met_Office/UKV/zarr/UKV_intermediate_version_3.zarr
@@ -70,16 +64,6 @@ input_data:
     hrvsatellite_image_size_pixels_height: 128
     hrvsatellite_image_size_pixels_width: 256
     hrvsatellite_zarr_path: /mnt/storage_ssd_8tb/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/satellite/EUMETSAT/SEVIRI_RSS/zarr/v3/eumetsat_seviri_hrv_uk.zarr
-
-  # ------------------------- Sun ------------------------
-  sun:
-    sun_zarr_path: /mnt/storage_b/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/Sun/v2/sun.zarr
-
-  # ------------------------- Topographic ----------------
-  topographic:
-    topographic_filename: /mnt/storage_b/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/Topographic/europe_dem_1km_osgb.tif
-    topographic_image_size_pixels_width: 300
-    topographic_image_size_pixels_height: 300
 
 
 output_data:

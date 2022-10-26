@@ -43,3 +43,4 @@ trainer = pl.Trainer(max_epochs=50)
 model = LitModel(input_channels=input_channels, input_size=batch[0].shape[2])
 
 trainer.fit(model, train_dataloaders=dataloader)
+torch.save(model.model, "metnet_uk_national")
