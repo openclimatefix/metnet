@@ -36,6 +36,7 @@ class LitModel(pl.LightningModule):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--use_2", action="store_true", help="Use MetNet-2")
     parser.add_argument("--config", default="national.yaml")
     parser.add_argument("--num_workers", type=int, default=32)
     parser.add_argument("--batch", default=4, type=int)
@@ -60,8 +61,7 @@ if __name__ == "__main__":
                          auto_select_gpus=True,
                          auto_lr_find=True,
                          callbacks=[model_checkpoint, early_stopping])
+    model = LitModel(input_channels=input_channels, input_size=batch[0].shape[2], use_metnet2=args.use_2)
     trainer.tune(model)
-    model = LitModel(input_channels=input_channels, input_size=batch[0].shape[2])
-
     trainer.fit(model, train_dataloaders=dataloader)
-    torch.save(model.model, "metnet_uk_national")
+    torch.save(model.model, f"metnet{'-2' if args.use_2 else ''}_uk_national")
