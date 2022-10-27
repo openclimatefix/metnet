@@ -20,7 +20,8 @@ input_data:
       - r
     nwp_image_size_pixels_height: 128
     nwp_image_size_pixels_width: 128
-    nwp_zarr_path: /mnt/leonardo/storage_ssd_8tb/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/NWP/UK_Met_Office/UKV/zarr/UKV_intermediate_version_3.zarr
+    nwp_zarr_path: ""
+    # /mnt/leonardo/storage_ssd_8tb/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/NWP/UK_Met_Office/UKV/zarr/UKV_intermediate_version_3.zarr
     forecast_minutes: 2880
     history_minutes: 60
 

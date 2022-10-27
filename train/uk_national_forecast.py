@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 # Dataprep
 datapipe = metnet_national_datapipe("national.yaml")
 
-dataloader = DataLoader(dataset=datapipe, batch_size=4, pin_memory=True, num_workers=8)
+dataloader = DataLoader(dataset=datapipe, batch_size=4, pin_memory=True, num_workers=32)
 
 class LitModel(pl.LightningModule):
     def __init__(self, use_metnet2: bool = False, input_channels=12, center_crop_size=64, input_size=256, forecast_steps=96, lr=1e-4):
