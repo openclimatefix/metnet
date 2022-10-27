@@ -59,9 +59,9 @@ if __name__ == "__main__":
                          devices=args.num_gpu,
                          accelerator="auto",
                          auto_select_gpus=True,
-                         auto_lr_find=True,
+                         auto_lr_find=False,
                          callbacks=[model_checkpoint, early_stopping])
     model = LitModel(input_channels=input_channels, input_size=batch[0].shape[2], use_metnet2=args.use_2)
-    trainer.tune(model)
+    # trainer.tune(model)
     trainer.fit(model, train_dataloaders=dataloader)
     torch.save(model.model, f"metnet{'-2' if args.use_2 else ''}_uk_national")
