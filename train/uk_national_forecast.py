@@ -5,17 +5,14 @@ import torch.nn.functional as F
 from ocf_datapipes.training.metnet_national import metnet_national_datapipe
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-
-# Dataprep
-datapipe = metnet_national_datapipe("national.yaml")
-
-dataloader = DataLoader(dataset=datapipe, batch_size=4, pin_memory=True, num_workers=32)
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+import argparse
 
 class LitModel(pl.LightningModule):
     def __init__(self, use_metnet2: bool = False, input_channels=12, center_crop_size=64, input_size=256, forecast_steps=96, lr=1e-4):
         super().__init__()
         self.forecast_steps = forecast_steps
-        self.lr = lr
+        self.learning_rate = lr
         if use_metnet2:
             self.model = MetNet2(output_channels=1, input_channels=input_channels, center_crop_size=center_crop_size, input_size=input_size, forecast_steps=forecast_steps) # every half hour for 48 hours
         else:
@@ -35,12 +32,36 @@ class LitModel(pl.LightningModule):
         return loss / self.forecast_steps
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.lr)
+        return torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
 
-batch = next(iter(datapipe))
-input_channels = batch[0].shape[1] # [Time, Channel, Width, Height] for now assume square
-trainer = pl.Trainer(max_epochs=50)
-model = LitModel(input_channels=input_channels, input_size=batch[0].shape[2])
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="national.yaml")
+    parser.add_argument("--num_workers", type=int, default=32)
+    parser.add_argument("--batch", default=4, type=int)
+    parser.add_argument("--fp16", action="store_true")
+    parser.add_argument("--num_gpu", type=int, default=-1)
+    parser.add_argument("--epochs", type=int, default=50)
+    args = parser.parse_args()
+    # Dataprep
+    datapipe = metnet_national_datapipe(args.config)
+    dataloader = DataLoader(dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers)
+    # Get the shape of the batch
+    batch = next(iter(datapipe))
+    input_channels = batch[0].shape[1] # [Time, Channel, Width, Height] for now assume square
+    print(f"Number of input channels: {input_channels}")
+    # Validation steps
+    model_checkpoint = ModelCheckpoint(monitor="loss")
+    early_stopping = EarlyStopping(monitor="loss")
+    trainer = pl.Trainer(max_steps=args.epochs,
+                         precision=16 if args.fp16 else 32,
+                         devices=args.num_gpu,
+                         accelerator="auto",
+                         auto_select_gpus=True,
+                         auto_lr_find=True,
+                         callbacks=[model_checkpoint, early_stopping])
+    trainer.tune(model)
+    model = LitModel(input_channels=input_channels, input_size=batch[0].shape[2])
 
-trainer.fit(model, train_dataloaders=dataloader)
-torch.save(model.model, "metnet_uk_national")
+    trainer.fit(model, train_dataloaders=dataloader)
+    torch.save(model.model, "metnet_uk_national")
