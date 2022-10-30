@@ -42,8 +42,8 @@ class ConditionWithTimeMetNet2(nn.Module):
             2 Tensors of shape (Batch, num_feature_maps)
         """
         # One hot encode the timestep
-        timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=x.dtype)
-        timesteps[:, timestep] = 1
+        timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=torch.long).type_as(x)
+        timesteps[:, timestep.long()] = 1
         # Get scales and biases
         for layer in self.lead_time_network:
             timesteps = layer(timesteps)
