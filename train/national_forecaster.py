@@ -57,17 +57,23 @@ if __name__ == "__main__":
     parser.add_argument("--size", type=int, default=256, help="Input Size in pixels")
     parser.add_argument("--center_size", type=int, default=64, help="Center Crop Size")
     parser.add_argument("--cpu", action="store_true", help="Force run on CPU")
+    parser.add_argument("--accumulate", type=int, default=1)
     args = parser.parse_args()
     skip_num = int(96/args.steps)
     # Dataprep
-    datapipe = metnet_national_datapipe(args.config)
+    datapipe = metnet_national_datapipe(args.config, start_time=datetime.datetime(2020, 1, 1),
+                                        end_time=datetime.datetime(2020, 12, 31))
+    val_datapipe = metnet_national_datapipe(args.config, start_time=datetime.datetime(2021, 1, 1),
+                                            end_time=datetime.datetime(2022, 12, 31))
     dataloader = DataLoader(dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers)
+    val_dataloader = DataLoader(dataset=val_datapipe, batch_size=args.batch, pin_memory=True,
+                                num_workers=args.num_workers)
     # Get the shape of the batch
     batch = next(iter(dataloader))
     input_channels = batch[0].shape[2] # [Batch. Time, Channel, Width, Height] for now assume square
     print(f"Number of input channels: {input_channels}")
     # Validation steps
-    model_checkpoint = ModelCheckpoint(every_n_train_steps=100, dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'-2' if args.use_2 else ''}_in_channels{input_channels}_step{args.steps}")
+    model_checkpoint = ModelCheckpoint(every_n_train_steps=100, dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'-2' if args.use_2 else ''}_inchannels{input_channels}_step{args.steps}")
     #early_stopping = EarlyStopping(monitor="loss")
     trainer = pl.Trainer(max_epochs=args.epochs,
                          precision=16 if args.fp16 else 32,
@@ -75,10 +81,12 @@ if __name__ == "__main__":
                          accelerator="auto" if not args.cpu else "cpu",
                          auto_select_gpus=False,
                          auto_lr_find=False,
-                         accumulate_grad_batches=16,
                          log_every_n_steps=1,
+                         limit_val_batches=400 * args.accumulate,
+                         limit_train_batches=8000 * args.accumulate,
+                         accumulate_grad_batches=args.accumulate,
                          callbacks=[model_checkpoint])
     model = LitModel(input_channels=input_channels, input_size=args.size, use_metnet2=args.use_2, center_crop_size=args.center_size) #, forecast_steps=args.steps*4)
     # trainer.tune(model)
-    trainer.fit(model, train_dataloaders=dataloader)
+    trainer.fit(model, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
     torch.save(model.model, f"metnet{'-2' if args.use_2 else ''}_uk_national_{args.steps}_skip_{skip_num}_fp16_{args.fp16}")
