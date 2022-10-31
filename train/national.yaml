@@ -14,18 +14,17 @@ input_data:
   #---------------------- NWP -------------------
   nwp:
     nwp_channels:
-      - t
       - dswrf
+      - si10
+      - t
       - prate
-      - r
     nwp_image_size_pixels_height: 128
     nwp_image_size_pixels_width: 128
-    nwp_zarr_path: ""
-    # /mnt/leonardo/storage_ssd_8tb/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/NWP/UK_Met_Office/UKV/zarr/UKV_intermediate_version_3.zarr
-    forecast_minutes: 2880
+    nwp_zarr_path: /mnt/leonardo/storage_ssd_8tb/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/NWP/UK_Met_Office/UKV/zarr/UKV_intermediate_version_3.zarr
+    forecast_minutes: 1440 # 24 hours
     history_minutes: 60
 
-  #---------------------- PV -------------------
+  #---------------------- PV ---------minutes=60----------
   pv:
     pv_files_groups:
       - label: solar_sheffield_passiv
