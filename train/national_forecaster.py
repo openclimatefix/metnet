@@ -27,9 +27,24 @@ class LitModel(pl.LightningModule):
         x, y = batch
         x = x.half()
         y = y.half()
-        print(y.shape)
         f = np.random.randint(1, skip_num) # Index 0 is the current generation
-        print(y[:,f,0])
+        # TODO Fix manual setting
+        y /= 13500.0 # Manually set for now
+        y_hat = self(x, torch.tensor(f).long().type_as(x))
+        loss_fn = torch.nn.MSELoss()
+        loss = loss_fn(torch.mean(y_hat, dim=(1,2,3)), y[:,f,0])
+        total_num = 1
+        for i, f in enumerate(range(f+1, 96, skip_num)): # Can only do 12 hours, so extend out to 48 by doing every 4th one
+            y_hat = self(x,torch.tensor(f).long().type_as(x))
+            loss += loss_fn(torch.mean(y_hat, dim=(1,2,3)), y[:,f,0])
+            total_num += 1
+        return loss / total_num
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        x = x.half()
+        y = y.half()
+        f = np.random.randint(1, skip_num) # Index 0 is the current generation
         # TODO Fix manual setting
         y /= 13500.0 # Manually set for now
         y_hat = self(x, torch.tensor(f).long().type_as(x))
