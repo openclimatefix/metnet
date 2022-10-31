@@ -63,15 +63,15 @@ if __name__ == "__main__":
     datapipe = metnet_national_datapipe(args.config)
     dataloader = DataLoader(dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers)
     # Get the shape of the batch
-    # batch = next(iter(datapipe))
-    input_channels = 32 #batch[0].shape[1] # [Time, Channel, Width, Height] for now assume square
+    batch = next(iter(dataloader))
+    input_channels = batch[0].shape[2] # [Batch. Time, Channel, Width, Height] for now assume square
     print(f"Number of input channels: {input_channels}")
     # Validation steps
     model_checkpoint = ModelCheckpoint(every_n_train_steps=100, dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'-2' if args.use_2 else ''}_in_channels{input_channels}_step{args.steps}")
     #early_stopping = EarlyStopping(monitor="loss")
     trainer = pl.Trainer(max_epochs=args.epochs,
                          precision=16 if args.fp16 else 32,
-                         devices=[args.num_gpu],
+                         devices=[args.num_gpu] if not args.cpu else 1,
                          accelerator="auto" if not args.cpu else "cpu",
                          auto_select_gpus=False,
                          auto_lr_find=False,
