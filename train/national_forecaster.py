@@ -72,7 +72,7 @@ if __name__ == "__main__":
     trainer = pl.Trainer(max_epochs=args.epochs,
                          precision=16 if args.fp16 else 32,
                          devices=[args.num_gpu],
-                         accelerator="auto",
+                         accelerator="auto" if not args.cpu else "cpu",
                          auto_select_gpus=False,
                          auto_lr_find=False,
                          accumulate_grad_batches=16,
