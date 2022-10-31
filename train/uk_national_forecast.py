@@ -2,6 +2,7 @@ from metnet import MetNet, MetNet2
 from torchinfo import summary
 import torch
 import torch.nn.functional as F
+import datetime
 from ocf_datapipes.training.metnet_national import metnet_national_datapipe
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -41,14 +42,17 @@ if __name__ == "__main__":
     parser.add_argument("--use_2", action="store_true", help="Use MetNet-2")
     parser.add_argument("--config", default="national.yaml")
     parser.add_argument("--num_workers", type=int, default=32)
-    parser.add_argument("--batch", default=4, type=int)
+    parser.add_argument("--batch", default=1, type=int)
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--num_gpu", type=int, default=-1)
     parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--accumulate", type=int, default=1)
     args = parser.parse_args()
     # Dataprep
-    datapipe = metnet_national_datapipe(args.config)
+    datapipe = metnet_national_datapipe(args.config, start_time=datetime.datetime(2020,1,1), end_time=datetime.datetime(2020,12,31))
+    val_datapipe = metnet_national_datapipe(args.config, start_time=datetime.datetime(2021,1,1), end_time=datetime.datetime(2022,12,31))
     dataloader = DataLoader(dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers)
+    val_dataloader = DataLoader(dataset=val_datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers)
     # Get the shape of the batch
     batch = next(iter(datapipe))
     input_channels = batch[0].shape[1] # [Time, Channel, Width, Height] for now assume square
@@ -56,15 +60,18 @@ if __name__ == "__main__":
     # Validation steps
     model_checkpoint = ModelCheckpoint(monitor="loss")
     early_stopping = EarlyStopping(monitor="loss")
-    trainer = pl.Trainer(max_steps=args.epochs,
+    trainer = pl.Trainer(max_epochs=args.epochs,
                          precision=16 if args.fp16 else 32,
                          devices=args.num_gpu,
                          accelerator="auto",
                          auto_select_gpus=True,
                          auto_lr_find=False,
                          log_every_n_steps=1,
+                         limit_val_batches=400*args.accumulate,
+                         limit_train_batches=8000*args.accumulate,
+                         accumulate_grad_batches=args.accumulate,
                          callbacks=[model_checkpoint, early_stopping])
     model = LitModel(input_channels=input_channels, input_size=batch[0].shape[2], use_metnet2=args.use_2)
     # trainer.tune(model)
-    trainer.fit(model, train_dataloaders=dataloader)
+    trainer.fit(model, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
     torch.save(model.model, f"metnet{'-2' if args.use_2 else ''}_uk_national")
