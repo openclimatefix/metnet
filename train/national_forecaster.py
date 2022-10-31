@@ -27,8 +27,9 @@ class LitModel(pl.LightningModule):
         x = x.half()
         y = y.half()
         print(y.shape)
-        f = np.random.randint(0, skip_num)
+        f = np.random.randint(1, skip_num) # Index 0 is the current generation
         print(y[:,f,0])
+        # TODO Fix manual setting
         y /= 13500.0 # Manually set for now
         y_hat = self(x, torch.tensor(f).long().type_as(x))
         loss_fn = torch.nn.MSELoss()
@@ -52,9 +53,10 @@ if __name__ == "__main__":
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--num_gpu", type=int, default=-1)
     parser.add_argument("--epochs", type=int, default=50)
-    parser.add_argument("--steps", type=int, default=96, help="Number of forecast steps")
+    parser.add_argument("--steps", type=int, default=96, help="Number of forecast steps per pass")
     parser.add_argument("--size", type=int, default=256, help="Input Size in pixels")
     parser.add_argument("--center_size", type=int, default=64, help="Center Crop Size")
+    parser.add_argument("--cpu", action="store_true", help="Force run on CPU")
     args = parser.parse_args()
     skip_num = int(96/args.steps)
     # Dataprep
@@ -65,7 +67,7 @@ if __name__ == "__main__":
     input_channels = 32 #batch[0].shape[1] # [Time, Channel, Width, Height] for now assume square
     print(f"Number of input channels: {input_channels}")
     # Validation steps
-    model_checkpoint = ModelCheckpoint(every_n_train_steps=1000, dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'-2' if args.use_2 else ''}_in_channels{input_channels}_step{args.steps}")
+    model_checkpoint = ModelCheckpoint(every_n_train_steps=100, dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'-2' if args.use_2 else ''}_in_channels{input_channels}_step{args.steps}")
     #early_stopping = EarlyStopping(monitor="loss")
     trainer = pl.Trainer(max_epochs=args.epochs,
                          precision=16 if args.fp16 else 32,
