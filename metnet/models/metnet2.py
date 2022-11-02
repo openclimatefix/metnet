@@ -95,7 +95,10 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         self.output_channels = output_channels
         if use_preprocessor:
             self.preprocessor = MetNetPreprocessor(
-                sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
+                sat_channels=sat_channels,
+                crop_size=input_size,
+                use_space2depth=True,
+                split_input=True,
             )
             # Update number of input_channels with output from MetNetPreprocessor
             new_channels = sat_channels * 4  # Space2Depth
@@ -292,5 +295,3 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
 
         # Softmax for rain forecasting
         return res
-
-

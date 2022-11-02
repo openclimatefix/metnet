@@ -47,7 +47,10 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
 
         if use_preprocessor:
             self.preprocessor = MetNetPreprocessor(
-                sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
+                sat_channels=sat_channels,
+                crop_size=input_size,
+                use_space2depth=True,
+                split_input=True,
             )
             # Update number of input_channels with output from MetNetPreprocessor
             new_channels = sat_channels * 4  # Space2Depth
