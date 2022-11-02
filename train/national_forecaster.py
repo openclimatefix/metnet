@@ -51,14 +51,14 @@ class LitModel(pl.LightningModule):
         x = x.half()
         y = y.half()
         f = np.random.randint(1, skip_num + 1)  # Index 0 is the current generation
-        y_hat = self(x, torch.tensor(f).long().type_as(x))
+        y_hat = self(x, torch.tensor(f-1).long().type_as(x))
         loss_fn = torch.nn.MSELoss()
         loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
         total_num = 1
         for i, f in enumerate(
             range(f + 1, 97, skip_num)
         ):  # Can only do 12 hours, so extend out to 48 by doing every 4th one
-            y_hat = self(x, torch.tensor(f).long().type_as(x))
+            y_hat = self(x, torch.tensor(f-1).long().type_as(x))
             loss += loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
             total_num += 1
         return loss / total_num
@@ -75,7 +75,7 @@ class LitModel(pl.LightningModule):
         for i, f in enumerate(
             range(f + 1, 97, skip_num)
         ):  # Can only do 12 hours, so extend out to 48 by doing every 4th one
-            y_hat = self(x, torch.tensor(f).long().type_as(x))
+            y_hat = self(x, torch.tensor(f-1).long().type_as(x))
             loss += loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
             total_num += 1
         return loss / total_num
@@ -116,22 +116,22 @@ if __name__ == "__main__":
         use_hrv=args.hrv,
         use_pv=args.pv,
     )
-    val_datapipe = metnet_national_datapipe(
-        args.config,
-        start_time=datetime.datetime(2021, 1, 1),
-        end_time=datetime.datetime(2022, 12, 31),
-        use_sun=args.sun,
-        use_nwp=args.nwp,
-        use_sat=args.sat,
-        use_hrv=args.hrv,
-        use_pv=args.pv,
-    )
+    #val_datapipe = metnet_national_datapipe(
+    #    args.config,
+    #    start_time=datetime.datetime(2021, 1, 1),
+    #    end_time=datetime.datetime(2022, 12, 31),
+    #    use_sun=args.sun,
+    #    use_nwp=args.nwp,
+    #    use_sat=args.sat,
+    #    use_hrv=args.hrv,
+    #    use_pv=args.pv,
+    #)
     dataloader = DataLoader(
         dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
     )
-    val_dataloader = DataLoader(
-        dataset=val_datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
-    )
+    #val_dataloader = DataLoader(
+    #    dataset=val_datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
+    #)
     # Get the shape of the batch
     batch = next(iter(dataloader))
     input_channels = batch[0].shape[
@@ -161,7 +161,7 @@ if __name__ == "__main__":
         auto_select_gpus=False,
         auto_lr_find=False,
         log_every_n_steps=1,
-        limit_val_batches=400 * args.accumulate,
+        # limit_val_batches=400 * args.accumulate,
         limit_train_batches=500 * args.accumulate,
         accumulate_grad_batches=args.accumulate,
         callbacks=[model_checkpoint],
@@ -173,4 +173,4 @@ if __name__ == "__main__":
         center_crop_size=args.center_size,
     )  # , forecast_steps=args.steps*4)
     # trainer.tune(model)
-    trainer.fit(model, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
+    trainer.fit(model, train_dataloaders=dataloader) #, val_dataloaders=val_dataloader)
