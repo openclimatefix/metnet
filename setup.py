@@ -28,6 +28,7 @@ setup(
     ],
     install_requires=install_requires,
     long_description=long_description,
+    extras_require={"train": ["ocf_datapipes", "pytorch-lightning"]},
     long_description_content_type="text/markdown",
     classifiers=[
         "Development Status :: 4 - Beta",

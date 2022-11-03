@@ -1,13 +1,13 @@
 """MetNet-2 model for weather forecasting"""
 from typing import List
 
-import einops
 import torch
 import torch.nn as nn
 import torchvision.transforms
 from huggingface_hub import PyTorchModelHubMixin
 
 from metnet.layers import DownSampler, MetNetPreprocessor, TimeDistributed
+from metnet.layers.ConditionWithTimeMetNet2 import ConditionWithTimeMetNet2
 from metnet.layers.ConvLSTM import ConvLSTM
 from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualConv
 
@@ -34,6 +34,7 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         kernel_size: int = 3,
         center_crop_size: int = 128,
         forecast_steps: int = 48,
+        use_preprocessor: bool = True,
         **kwargs,
     ):
         """
@@ -87,17 +88,25 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         num_input_timesteps = self.config["num_input_timesteps"]
         center_crop_size = self.config["center_crop_size"]
         upsampler_channels = self.config["upsampler_channels"]
+        use_preprocessor = self.config["use_preprocessor"]
 
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
         self.output_channels = output_channels
-        self.preprocessor = MetNetPreprocessor(
-            sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
-        )
-        # Update number of input_channels with output from MetNetPreprocessor
-        new_channels = sat_channels * 4  # Space2Depth
-        new_channels *= 2  # Concatenate two of them together
-        input_channels = input_channels  # - sat_channels + new_channels
+        if use_preprocessor:
+            self.preprocessor = MetNetPreprocessor(
+                sat_channels=sat_channels,
+                crop_size=input_size,
+                use_space2depth=True,
+                split_input=True,
+            )
+            # Update number of input_channels with output from MetNetPreprocessor
+            new_channels = sat_channels * 4  # Space2Depth
+            new_channels *= 2  # Concatenate two of them together
+            input_channels = input_channels  # - sat_channels + new_channels
+        else:
+            self.preprocessor = torch.nn.Identity()
+
         if image_encoder in ["downsampler", "default"]:
             image_encoder = DownSampler(input_channels, output_channels=input_channels)
         else:
@@ -286,53 +295,3 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
 
         # Softmax for rain forecasting
         return res
-
-
-class ConditionWithTimeMetNet2(nn.Module):
-    """Compute Scale and bias for conditioning on time"""
-
-    def __init__(self, forecast_steps: int, hidden_dim: int, num_feature_maps: int):
-        """
-        Compute the scale and bias factors for conditioning convolutional blocks on the forecast time
-
-        Args:
-            forecast_steps: Number of forecast steps
-            hidden_dim: Hidden dimension size
-            num_feature_maps: Max number of channels in the blocks, to generate enough scale+bias values
-                This means extra values will be generated, but keeps implementation simpler
-        """
-        super().__init__()
-        self.forecast_steps = forecast_steps
-        self.num_feature_maps = num_feature_maps
-        self.lead_time_network = nn.ModuleList(
-            [
-                nn.Linear(in_features=forecast_steps, out_features=hidden_dim),
-                nn.Linear(in_features=hidden_dim, out_features=2 * num_feature_maps),
-            ]
-        )
-
-    def forward(self, x: torch.Tensor, timestep: int) -> [torch.Tensor, torch.Tensor]:
-        """
-        Get the scale and bias for the conditioning layers
-
-        From the FiLM paper, each feature map (i.e. channel) has its own scale and bias layer, so needs
-        a scale and bias for each feature map to be generated
-
-        Args:
-            x: The Tensor that is used
-            timestep: Index of the timestep to use, between 0 and forecast_steps
-
-        Returns:
-            2 Tensors of shape (Batch, num_feature_maps)
-        """
-        # One hot encode the timestep
-        timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=x.dtype)
-        timesteps[:, timestep] = 1
-        # Get scales and biases
-        for layer in self.lead_time_network:
-            timesteps = layer(timesteps)
-        scales_and_biases = timesteps
-        scales_and_biases = einops.rearrange(
-            scales_and_biases, "b (block sb) -> b block sb", block=self.num_feature_maps, sb=2
-        )
-        return scales_and_biases[:, :, 0], scales_and_biases[:, :, 1]

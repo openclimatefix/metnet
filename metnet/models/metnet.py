@@ -20,6 +20,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         num_att_layers: int = 1,
         forecast_steps: int = 48,
         temporal_dropout: float = 0.2,
+        use_preprocessor: bool = True,
         **kwargs,
     ):
         super(MetNet, self).__init__()
@@ -38,18 +39,26 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         num_layers = self.config["num_layers"]
         num_att_layers = self.config["num_att_layers"]
         output_channels = self.config["output_channels"]
+        use_preprocessor = self.config["use_preprocessor"]
 
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
         self.output_channels = output_channels
 
-        self.preprocessor = MetNetPreprocessor(
-            sat_channels=sat_channels, crop_size=input_size, use_space2depth=True, split_input=True
-        )
-        # Update number of input_channels with output from MetNetPreprocessor
-        new_channels = sat_channels * 4  # Space2Depth
-        new_channels *= 2  # Concatenate two of them together
-        input_channels = input_channels - sat_channels + new_channels
+        if use_preprocessor:
+            self.preprocessor = MetNetPreprocessor(
+                sat_channels=sat_channels,
+                crop_size=input_size,
+                use_space2depth=True,
+                split_input=True,
+            )
+            # Update number of input_channels with output from MetNetPreprocessor
+            new_channels = sat_channels * 4  # Space2Depth
+            new_channels *= 2  # Concatenate two of them together
+            input_channels = input_channels - sat_channels + new_channels
+        else:
+            self.preprocessor = torch.nn.Identity()
+
         self.drop = nn.Dropout(temporal_dropout)
         if image_encoder in ["downsampler", "default"]:
             image_encoder = DownSampler(input_channels + forecast_steps)
