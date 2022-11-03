@@ -43,7 +43,7 @@ class ConditionWithTimeMetNet2(nn.Module):
         """
         # One hot encode the timestep
         timesteps = torch.zeros(x.size()[0], self.forecast_steps, dtype=torch.long).type_as(x)
-        timesteps[:, timestep.long()] = 1
+        timesteps[:, timestep] = 1
         # Get scales and biases
         for layer in self.lead_time_network:
             timesteps = layer(timesteps)

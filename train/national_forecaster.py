@@ -162,7 +162,7 @@ if __name__ == "__main__":
         auto_lr_find=False,
         log_every_n_steps=1,
         # limit_val_batches=400 * args.accumulate,
-        limit_train_batches=500 * args.accumulate,
+        # limit_train_batches=500 * args.accumulate,
         accumulate_grad_batches=args.accumulate,
         callbacks=[model_checkpoint],
     )
