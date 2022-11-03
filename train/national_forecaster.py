@@ -51,14 +51,14 @@ class LitModel(pl.LightningModule):
         x = x.half()
         y = y.half()
         f = np.random.randint(1, skip_num + 1)  # Index 0 is the current generation
-        y_hat = self(x, torch.tensor(f-1).long().type_as(x))
+        y_hat = self(x, f-1) # torch.tensor(f-1).long().type_as(x))
         loss_fn = torch.nn.MSELoss()
         loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
         total_num = 1
         for i, f in enumerate(
             range(f + 1, 97, skip_num)
         ):  # Can only do 12 hours, so extend out to 48 by doing every 4th one
-            y_hat = self(x, torch.tensor(f-1).long().type_as(x))
+            y_hat = self(x, f-1) # torch.tensor(f-1).long().type_as(x))
             loss += loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
             total_num += 1
         return loss / total_num
