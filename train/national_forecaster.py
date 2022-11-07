@@ -96,6 +96,7 @@ if __name__ == "__main__":
     parser.add_argument("--hrv", action="store_true")
     parser.add_argument("--pv", action="store_true")
     parser.add_argument("--sun", action="store_true")
+    parser.add_argument("--topo", action="store_true")
     parser.add_argument("--num_gpu", type=int, default=-1)
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--steps", type=int, default=96, help="Number of forecast steps per pass")
@@ -115,6 +116,7 @@ if __name__ == "__main__":
         use_sat=args.sat,
         use_hrv=args.hrv,
         use_pv=args.pv,
+        use_topo=args.topo
     )
     #val_datapipe = metnet_national_datapipe(
     #    args.config,
@@ -149,6 +151,7 @@ if __name__ == "__main__":
                 f"_hrv{args.hrv}"
                 f"_nwp{args.nwp}"
                 f"_pv{args.pv}"
+                f"_topo{args.topo}"
                 f"_fp16{args.fp16}"
                 f"_effectiveBatch{args.batch*args.accumulate}",
     )
