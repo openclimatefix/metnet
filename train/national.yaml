@@ -65,6 +65,11 @@ input_data:
     hrvsatellite_image_size_pixels_width: 256
     hrvsatellite_zarr_path: /mnt/storage_ssd_4tb/metnet_train/eumetsat_seviri_hrv_uk.zarr
 
+  # ------------------------- Topographic ----------------
+  topographic:
+    topographic_filename: /mnt/storage_ssd_4tb/metnet_train/Topo/europe_dem_1km_osgb.tif
+    topographic_image_size_pixels_width: 300
+    topographic_image_size_pixels_height: 300
 
 output_data:
   filepath: /mnt/storage_ssd_4tb/data/ocf/solar_pv_nowcasting/nowcasting_dataset_pipeline/prepared_ML_training_data/v15
