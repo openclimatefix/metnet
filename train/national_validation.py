@@ -175,18 +175,18 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         for i, batch in enumerate(dataloader):
-            if first_batch is None:
-                first_batch = copy.deepcopy(batch)
-                first_x = first_batch[0].numpy()
-                first_y = first_batch[1].numpy()
-            else:
-                x, y = batch
-                if np.isclose(first_x, x.numpy()).all() and np.isclose(first_y, y.numpy()).all():
-                    for f in range(96):
-                        per_step_losses[f]["MSE"] /= i
-                        per_step_losses[f]["RMSE"] /= i
-                        per_step_losses[f]["MAE"] /= i
-                    break
+            #if first_batch is None:
+            #    first_batch = copy.deepcopy(batch)
+            #    first_x = first_batch[0].numpy()
+            #    first_y = first_batch[1].numpy()
+            #else:
+            #    x, y = batch
+            #    if np.isclose(first_x, x.numpy()).all() and np.isclose(first_y, y.numpy()).all():
+            #        for f in range(96):
+            #            per_step_losses[f]["MSE"] /= i
+            #            per_step_losses[f]["RMSE"] /= i
+            #            per_step_losses[f]["MAE"] /= i
+            #        break
             x, y = batch
             x = x.half()
             y = y.half()
@@ -198,13 +198,13 @@ if __name__ == "__main__":
                 per_step_losses[f]["MSE"] += mse
                 per_step_losses[f]["RMSE"] += rmse
                 per_step_losses[f]["MAE"] += mae
-            if i > 10000:
-                for f in range(96):
-                    per_step_losses[f]["MSE"] /= i
-                    per_step_losses[f]["RMSE"] /= i
-                    per_step_losses[f]["MAE"] /= i
+            if i > 11663: # Gone over the 9 months, so break
                 break
 
+    for f in range(96):
+        per_step_losses[f]["MSE"] /= i
+        per_step_losses[f]["RMSE"] /= i
+        per_step_losses[f]["MAE"] /= i
     # Save out to disk
     import json
     with open(f"metnet{'_2' if args.use_2 else ''}_inchannels{input_channels}_step{args.steps}"
