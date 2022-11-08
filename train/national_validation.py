@@ -2,11 +2,17 @@ from metnet import MetNet, MetNet2
 import torch
 from collections import defaultdict
 from ocf_datapipes.training.metnet_national import metnet_national_datapipe
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, default_collate
 import argparse
 import datetime
 import numpy as np
 import glob
+
+def collate_fn(batch):
+    x, y, start_time = batch
+    collated_batch = default_collate((x,y))
+    return (collated_batch[0], collated_batch[1], start_time)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -44,7 +50,7 @@ if __name__ == "__main__":
         mode="val"
     )
     dataloader = DataLoader(
-        dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
+        dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers, collate_fn=collate_fn
     )
     # Get the shape of the batch
     batch = next(iter(dataloader))
@@ -96,7 +102,7 @@ if __name__ == "__main__":
                 mse = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f+1, 0])
                 rmse = torch.sqrt(mse)
                 mae = mae_loss(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f+1, 0])
-                per_step_losses[f][start_time.detach()] = [y_hat.detach().numpy(),
+                per_step_losses[f][start_time[0]] = [y_hat.detach().numpy(),
                                                   y.detach().numpy(),
                                                   mse.detach().numpy(),
                                                   rmse.detach().numpy(),
