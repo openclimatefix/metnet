@@ -103,7 +103,7 @@ if __name__ == "__main__":
                                                   mae.detach().numpy()]
             if i > 11663: # Gone over the 9 months, so break
                 break
-    np.save(per_step_losses, allow_pickle=True)
+    np.save("metnet_all_uses", per_step_losses, allow_pickle=True)
     # Save out to disk
     import json
     with open(f"metnet{'_2' if args.use_2 else ''}_inchannels{input_channels}_step{args.steps}"
