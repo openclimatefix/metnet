@@ -95,14 +95,12 @@ if __name__ == "__main__":
     with torch.no_grad():
         for i, batch in enumerate(dataloader):
             x, y, start_time = batch
-            x = x.half()
-            y = y.half()
             for f in range(96):
                 y_hat = model(x, f)
                 mse = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f+1, 0])
                 rmse = torch.sqrt(mse)
                 mae = mae_loss(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f+1, 0])
-                per_step_losses[f][start_time[0]] = [y_hat.detach().numpy(),
+                per_step_losses[f][start_time] = [y_hat.detach().numpy(),
                                                   y.detach().numpy(),
                                                   mse.detach().numpy(),
                                                   rmse.detach().numpy(),
