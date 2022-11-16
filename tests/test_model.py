@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from metnet import MetNet, MetNet2
+from metnet import MetNet, MetNet2, MetNetPV
 
 
 def test_metnet_creation():
@@ -44,6 +44,30 @@ def test_metnet_backwards():
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
 
+
+
+def test_metnet_pv_backwards():
+    model = MetNetPV(
+        hidden_dim=32,
+        forecast_steps=24,
+        input_channels=16,
+        output_channels=12,
+        sat_channels=12,
+        input_size=32,
+    )
+    # MetNet expects original HxW to be 4x the input size
+    x = torch.randn((2, 12, 16, 128, 128))
+    pv_x = torch.randn((2, 12, 1, 1000))
+    pv_idx = torch.randint(900,(2,1000))
+    out = []
+    for lead_time in range(24):
+        out.append(model(x, pv_x, pv_idx, lead_time))
+    out = torch.stack(out, dim=1)
+    # MetNet creates predictions for the center 1/4th
+    assert out.size() == (2, 24, 12)
+    y = torch.randn((2, 24, 12))
+    F.mse_loss(out, y).backward()
+    assert not torch.isnan(out).any(), "Output included NaNs"
 
 def test_load_metnet_hf():
     model = MetNet.from_pretrained("openclimatefix/metnet")
