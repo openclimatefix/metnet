@@ -89,13 +89,25 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
                 for _ in range(num_att_layers)
             ]
         )
-        self.fc1 = nn.Linear(in_features=21660, out_features=fc_1_channels)
         self.head = nn.Linear(fc_1_channels, output_channels)
         # PV Auxiliary Input
         self.pv_fc1 = nn.Linear(num_pv_systems, out_features=pv_fc_out_channels)
-        #self.pv_system_id_embedding = nn.Embedding(
-        #    num_embeddings=940, embedding_dim=pv_id_embedding_channels
-        #)
+        self.pv_system_id_embedding = nn.Embedding(
+            num_embeddings=940, embedding_dim=pv_id_embedding_channels
+        )
+
+        # hard code the number of pv timesteps - 12 is 1 hour as its in 5 minutes
+        n_pv_timestamps = 12
+        # final output features is
+        # 1. 2048, +
+        # 2. (n_pv_timestamps * pv channels) +
+        # 3. (number of pv systems * embedding dims)
+        fc1_input_features = (
+            2048 + n_pv_timestamps * pv_fc_out_channels + pv_id_embedding_channels * num_pv_systems
+        )
+
+        # FC layer, takes in 'econcded_timesteps', pv history, and embedding of pv ids
+        self.fc1 = nn.Linear(in_features=fc1_input_features, out_features=fc_1_channels)
 
     def encode_timestep(self, x, pv_yield_history, fstep=1):
 
@@ -112,20 +124,28 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         _, state = self.temporal_enc(self.drop(x))
         return self.temporal_agg(self.position_embedding(state))
 
-    def forward(self, imgs: torch.Tensor, pv_yield_history, pv_system_id, lead_time: int = 0) -> torch.Tensor:
+    def forward(
+        self, imgs: torch.Tensor, pv_yield_history, pv_system_id, lead_time: int = 0
+    ) -> torch.Tensor:
         """It takes a rank 5 tensor
         - imgs [bs, seq_len, channels, h, w]
         """
         x_i = self.encode_timestep(imgs, pv_yield_history, lead_time)
-        ## Reshape so can concat
+        # Reshape so can concat
         x_i = x_i.reshape(imgs.shape[0], -1)
-        ## Add in PV Data
+
+        # Add in PV Data
         pv_yield_history = F.relu(self.pv_fc1(pv_yield_history))
         pv_yield_history = pv_yield_history.reshape(imgs.shape[0], -1)
+
         # Add embedding
-        #embedding = self.pv_system_id_embedding(pv_system_id)
-        #embedding = embedding.reshape(imgs.shape[0], -1)
-        x_i = torch.cat((x_i, pv_yield_history), dim=1)
+        embedding = self.pv_system_id_embedding(pv_system_id)
+        embedding = embedding.reshape(imgs.shape[0], -1)
+
+        # concat all data together
+        x_i = torch.cat((x_i, pv_yield_history, embedding), dim=1)
+
+        # pass through fully connected layer
         x_i = F.relu(self.fc1(x_i))
         res = self.head(x_i)
         return res
