@@ -27,13 +27,15 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         pv_fc_out_channels: int = 256,
         pv_id_embedding_channels: int = 16,
         fc_1_channels: int = 256,
+        avg_pool_size: int = 1,
         **kwargs,
     ):
         super(MetNetPV, self).__init__()
         config = locals()
         config.pop("self")
         config.pop("__class__")
-        self.config = kwargs.pop("config", config)
+        config.update(kwargs.pop("config", {}))
+        self.config = config
         sat_channels = self.config["sat_channels"]
         input_size = self.config["input_size"]
         input_channels = self.config["input_channels"]
@@ -51,6 +53,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         pv_id_embedding_channels = self.config["pv_id_embedding_channels"]
         fc_1_channels = self.config["fc_1_channels"]
         num_att_heads = self.config["num_att_heads"]
+        avg_pool_size = self.config["avg_pool_size"]
 
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
@@ -89,21 +92,25 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
                 for _ in range(num_att_layers)
             ]
         )
+
+        self.avg_pool = nn.AvgPool2d(avg_pool_size, stride=avg_pool_size)
+
         self.head = nn.Linear(fc_1_channels, output_channels)
         # PV Auxiliary Input
         self.pv_fc1 = nn.Linear(num_pv_systems, out_features=pv_fc_out_channels)
         self.pv_system_id_embedding = nn.Embedding(
-            num_embeddings=940, embedding_dim=pv_id_embedding_channels
+            num_embeddings=30000, embedding_dim=pv_id_embedding_channels
         )
 
         # hard code the number of pv timesteps - 12 is 1 hour as its in 5 minutes
         n_pv_timestamps = 12
+        num_image_features = ((input_size // 4 // avg_pool_size) ** 2 * hidden_dim)
         # final output features is
         # 1. 2048, +
         # 2. (n_pv_timestamps * pv channels) +
         # 3. (number of pv systems * embedding dims)
         fc1_input_features = (
-            2048 + n_pv_timestamps * pv_fc_out_channels + pv_id_embedding_channels * num_pv_systems
+            num_image_features + n_pv_timestamps * pv_fc_out_channels + pv_id_embedding_channels * num_pv_systems
         )
 
         # FC layer, takes in 'econcded_timesteps', pv history, and embedding of pv ids
@@ -131,6 +138,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         - imgs [bs, seq_len, channels, h, w]
         """
         x_i = self.encode_timestep(imgs, pv_yield_history, lead_time)
+        x_i = self.avg_pool(x_i)
         # Reshape so can concat
         x_i = x_i.reshape(imgs.shape[0], -1)
 
