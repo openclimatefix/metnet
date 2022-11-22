@@ -28,6 +28,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         pv_id_embedding_channels: int = 16,
         fc_1_channels: int = 256,
         avg_pool_size: int = 1,
+        num_pv_embeddings: int = 30000,
         **kwargs,
     ):
         super(MetNetPV, self).__init__()
@@ -99,7 +100,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         # PV Auxiliary Input
         self.pv_fc1 = nn.Linear(num_pv_systems, out_features=pv_fc_out_channels)
         self.pv_system_id_embedding = nn.Embedding(
-            num_embeddings=30000, embedding_dim=pv_id_embedding_channels
+            num_embeddings=num_pv_embeddings, embedding_dim=pv_id_embedding_channels
         )
 
         # hard code the number of pv timesteps - 12 is 1 hour as its in 5 minutes
