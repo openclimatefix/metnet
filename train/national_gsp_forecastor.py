@@ -53,11 +53,10 @@ class LitModel(pl.LightningModule):
         return self.model(x, pv_y, pv_id,  forecast_step)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        x, pvs = x
+        x, pvs, y = batch
         pv_yield, pv_id = pvs
         x = x.half()
-        pv_id = pv_id.int()
+        pv_id = pv_id.long()
         pv_yield = pv_yield.half()
         y = y.half()
         f = np.random.randint(1, skip_num + 1)  # Index 0 is the current generation
