@@ -6,7 +6,7 @@ from huggingface_hub import PyTorchModelHubMixin
 from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
 
 
-class MetNet(torch.nn.Module, PyTorchModelHubMixin):
+class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -24,7 +24,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         use_preprocessor: bool = True,
         **kwargs,
     ):
-        super(MetNet, self).__init__()
+        super(MetNetSingleShot, self).__init__()
         config = locals()
         config.pop("self")
         config.pop("__class__")
@@ -63,11 +63,10 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
 
         self.drop = nn.Dropout(temporal_dropout)
         if image_encoder in ["downsampler", "default"]:
-            image_encoder = DownSampler(input_channels + forecast_steps)
+            image_encoder = DownSampler(input_channels)
         else:
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
         self.image_encoder = TimeDistributed(image_encoder)
-        self.ct = ConditionTime(forecast_steps)
         self.temporal_enc = TemporalEncoder(
             image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
         )
@@ -81,15 +80,12 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
             ]
         )
 
-        self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
+        self.head = nn.Conv2d(hidden_dim, forecast_steps, kernel_size=(1, 1))  # Reduces to forecast steps
 
-    def encode_timestep(self, x, fstep=1):
+    def encode_timestep(self, x):
 
         # Preprocess Tensor
         x = self.preprocessor(x)
-
-        # Condition Time
-        x = self.ct(x, fstep)
 
         ##CNN
         x = self.image_encoder(x)
@@ -98,11 +94,11 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         _, state = self.temporal_enc(self.drop(x))
         return self.temporal_agg(self.position_embedding(state))
 
-    def forward(self, imgs: torch.Tensor, lead_time: int = 0) -> torch.Tensor:
+    def forward(self, imgs: torch.Tensor) -> torch.Tensor:
         """It takes a rank 5 tensor
         - imgs [bs, seq_len, channels, h, w]
         """
-        x_i = self.encode_timestep(imgs, lead_time)
+        x_i = self.encode_timestep(imgs)
         res = self.head(x_i)
         return res
 

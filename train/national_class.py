@@ -2,13 +2,37 @@ from metnet import MetNet, MetNet2
 from torchinfo import summary
 import torch
 import torch.nn.functional as F
-from ocf_datapipes.training.metnet_national import metnet_national_datapipe
+from ocf_datapipes.training.metnet_national_class import metnet_national_datapipe
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 import argparse
 import datetime
 import numpy as np
+
+
+def prediction2label(pred: np.ndarray):
+    """Convert ordinal predictions to class labels, e.g.
+
+    [0.9, 0.1, 0.1, 0.1] -> 0
+    [0.9, 0.9, 0.1, 0.1] -> 1
+    [0.9, 0.9, 0.9, 0.1] -> 2
+    etc.
+    """
+    return (pred > 0.5).cumprod(axis=1).sum(axis=1) - 1
+
+
+def ordinal_regression(predictions, targets):
+    """Ordinal regression with encoding as in https://arxiv.org/pdf/0704.1028.pdf"""
+
+    # Create out modified target with [batch_size, num_labels] shape
+    modified_target = torch.zeros_like(predictions)
+
+    # Fill in ordinal target function, i.e. 0 -> [1,0,0,...]
+    for i, target in enumerate(targets):
+        modified_target[i, 0:target+1] = 1
+
+    return torch.nn.MSELoss(reduction='none')(predictions, modified_target).sum(axis=1)
 
 
 class LitModel(pl.LightningModule):
@@ -28,7 +52,7 @@ class LitModel(pl.LightningModule):
         self.learning_rate = lr
         if use_metnet2:
             self.model = MetNet2(
-                output_channels=1,
+                output_channels=1400,
                 input_channels=input_channels,
                 center_crop_size=center_crop_size,
                 input_size=input_size,
@@ -37,7 +61,7 @@ class LitModel(pl.LightningModule):
             )  # every half hour for 48 hours
         else:
             self.model = MetNet(
-                output_channels=1,
+                output_channels=1400,
                 input_channels=input_channels,
                 center_crop_size=center_crop_size,
                 input_size=input_size,
@@ -54,10 +78,12 @@ class LitModel(pl.LightningModule):
         x, y = batch
         x = x.half()
         y = y.half()
+        y = y[:, :, 0] // 1400 # Number of bins, should give bucket then?
+        print(y)
         f = np.random.randint(1, skip_num + 1)  # Index 0 is the current generation
         y_hat = self(x, f-1) # torch.tensor(f-1).long().type_as(x))
-        loss_fn = torch.nn.MSELoss()
-        loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
+        predictions = torch.mean(y_hat, dim=(2, 3))
+        loss = ordinal_regression(predictions, y[:, f])
         self.log(f"forecast_step_{f-1}_loss", loss, on_step=True)
         total_num = 1
         fs = np.random.choice(list(range(f,97)), 96//skip_num)
@@ -65,7 +91,8 @@ class LitModel(pl.LightningModule):
             range(f + 1, 97, skip_num)
         ):  # Can only do 12 hours, so extend out to 48 by doing every 4th one
             y_hat = self(x, fs[i]-1) # torch.tensor(f-1).long().type_as(x))
-            step_loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, fs[i], 0])
+            predictions = torch.mean(y_hat, dim=(2, 3))
+            step_loss = ordinal_regression(predictions, y[:, fs[i]])
             loss += step_loss
             self.log(f"forecast_step_{fs[i]}_loss", step_loss, on_step=True)
             total_num += 1
@@ -127,7 +154,7 @@ if __name__ == "__main__":
     tb_logger = pl_loggers.TensorBoardLogger(save_dir="logs/")
     model_checkpoint = ModelCheckpoint(
         every_n_train_steps=100,
-        dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'_2' if args.use_2 else ''}_inchannels{input_channels}"
+        dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'_2' if args.use_2 else ''}_class_inchannels{input_channels}"
                 f"_step{args.steps}"
                 f"_size{args.size}"
                 f"_sun{args.sun}"

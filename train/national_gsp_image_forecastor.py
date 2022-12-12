@@ -1,76 +1,67 @@
-from metnet import MetNet, MetNet2
+from metnet.models import MetNet, MetNet2
 from torchinfo import summary
 import torch
 import torch.nn.functional as F
-from ocf_datapipes.training.metnet_national import metnet_national_datapipe
+from ocf_datapipes.training.metnet_gsp_national import metnet_national_datapipe
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 import argparse
 import datetime
 import numpy as np
+from torchdata.datapipes.iter import IterableWrapper
 
 
 class LitModel(pl.LightningModule):
     def __init__(
         self,
-        use_metnet2: bool = False,
-        input_channels=12,
+        input_channels=42,
         center_crop_size=64,
         input_size=256,
         forecast_steps=96,
-        hidden_dim=2048,
+            hidden_dim=2048,
             att_layers=2,
         lr=3e-4,
+
     ):
         super().__init__()
         self.forecast_steps = forecast_steps
         self.learning_rate = lr
-        if use_metnet2:
-            self.model = MetNet2(
-                output_channels=1,
-                input_channels=input_channels,
-                center_crop_size=center_crop_size,
-                input_size=input_size,
-                forecast_steps=forecast_steps,
-                use_preprocessor=False,
-            )  # every half hour for 48 hours
-        else:
-            self.model = MetNet(
-                output_channels=1,
-                input_channels=input_channels,
-                center_crop_size=center_crop_size,
-                input_size=input_size,
-                num_att_layers=att_layers,
-                hidden_dim=hidden_dim,
-                forecast_steps=forecast_steps,
-                use_preprocessor=False,
-            )
+        self.model = MetNet(
+            output_channels=1,
+            input_channels=input_channels,
+            center_crop_size=center_crop_size,
+            input_size=input_size,
+            forecast_steps=forecast_steps,
+            use_preprocessor=False,
+            num_att_layers=att_layers,
+            hidden_dim=hidden_dim,
+        )
+        self.config = self.model.config
+        self.save_hyperparameters()
 
-    def forward(self, x, forecast_step):
-        return self.model(x, forecast_step)
+    def forward(self, x, pv_y, pv_id, forecast_step):
+        return self.model(x, pv_y, pv_id,  forecast_step)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
         x = x.half()
         y = y.half()
         f = np.random.randint(1, skip_num + 1)  # Index 0 is the current generation
-        y_hat = self(x, f-1) # torch.tensor(f-1).long().type_as(x))
         loss_fn = torch.nn.MSELoss()
-        loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
-        self.log(f"forecast_step_{f-1}_loss", loss, on_step=True)
-        total_num = 1
-        fs = np.random.choice(list(range(f,97)), 96//skip_num)
+        loss = 0
+        fs = np.random.choice(list(range(f, 97)), 96 // skip_num)
         for i, f in enumerate(
-            range(f + 1, 97, skip_num)
-        ):  # Can only do 12 hours, so extend out to 48 by doing every 4th one
-            y_hat = self(x, fs[i]-1) # torch.tensor(f-1).long().type_as(x))
-            step_loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, fs[i], 0])
+                range(f, 97, skip_num)
+        ):
+            out = self(x, fs[i]-1)
+            truths = y[:,fs[i], 0]
+            step_loss = loss_fn(torch.squeeze(out), torch.squeeze(truths))
             loss += step_loss
             self.log(f"forecast_step_{fs[i]}_loss", step_loss, on_step=True)
-            total_num += 1
-        self.log("loss", loss / total_num)
-        return loss / total_num
+        loss /= i #loss_fn(torch.squeeze(out), torch.squeeze(truths))
+        self.log("loss", loss)
+        return loss
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
@@ -87,12 +78,17 @@ if __name__ == "__main__":
     parser.add_argument("--sat", action="store_true")
     parser.add_argument("--hrv", action="store_true")
     parser.add_argument("--pv", action="store_true")
+    parser.add_argument("--gsp", action="store_true")
     parser.add_argument("--sun", action="store_true")
     parser.add_argument("--topo", action="store_true")
     parser.add_argument("--num_gpu", type=int, default=-1)
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--hidden", type=int, default=2048)
     parser.add_argument("--att", type=int, default=2)
+    parser.add_argument("--num_pv_systems", type=int, default=1000)
+    parser.add_argument("--num_embedding_size", type=int, default=30000)
+    parser.add_argument("--pv_out_channels", type=int, default=256)
+    parser.add_argument("--pv_embed_channels", type=int, default=256)
     parser.add_argument("--steps", type=int, default=96, help="Number of forecast steps per pass")
     parser.add_argument("--size", type=int, default=256, help="Input Size in pixels")
     parser.add_argument("--center_size", type=int, default=64, help="Center Crop Size")
@@ -110,7 +106,10 @@ if __name__ == "__main__":
         use_sat=args.sat,
         use_hrv=args.hrv,
         use_pv=args.pv,
-        use_topo=args.topo
+        use_gsp=args.gsp,
+        use_topo=args.topo,
+        gsp_in_image=True,
+        output_size=args.size
     )
     dataloader = DataLoader(
         dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
@@ -122,12 +121,13 @@ if __name__ == "__main__":
     ]  # [Batch. Time, Channel, Width, Height] for now assume square
     print(f"Number of input channels: {input_channels}")
     # Validation steps
-    from pytorch_lightning import loggers as pl_loggers
-
-    tb_logger = pl_loggers.TensorBoardLogger(save_dir="logs/")
     model_checkpoint = ModelCheckpoint(
         every_n_train_steps=100,
-        dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'_2' if args.use_2 else ''}_inchannels{input_channels}"
+        mode="max",
+        monitor="steps",
+        save_last=True,
+        save_top_k=10,
+        dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet_gsp_image_inchannels{input_channels}"
                 f"_step{args.steps}"
                 f"_size{args.size}"
                 f"_sun{args.sun}"
@@ -137,10 +137,11 @@ if __name__ == "__main__":
                 f"_pv{args.pv}"
                 f"_topo{args.topo}"
                 f"_fp16{args.fp16}"
-                f"_effectiveBatch{args.batch*args.accumulate}"
-                f"_hidden{args.hidden}"
-                f"_att_layers{args.att}",
+                f"_effectiveBatch{args.batch*args.accumulate}_att{args.att}_hidden{args.hidden}",
     )
+    from pytorch_lightning import loggers as pl_loggers
+
+    tb_logger = pl_loggers.TensorBoardLogger(save_dir="logs/")
     # early_stopping = EarlyStopping(monitor="loss")
     trainer = pl.Trainer(
         max_epochs=args.epochs,
@@ -159,10 +160,10 @@ if __name__ == "__main__":
     model = LitModel(
         input_channels=input_channels,
         input_size=args.size,
-        use_metnet2=args.use_2,
         center_crop_size=args.center_size,
         att_layers=args.att,
-        hidden_dim=args.hidden
-    )  # , forecast_steps=args.steps*4)
+        hidden_dim=args.hidden,
+
+    )  # , forecast_steps=args.steps*4) #.load_from_checkpoint("/mnt/storage_ssd_4tb/metnet_models/metnet_inchannels44_step8_size256_sunTrue_satTrue_hrvTrue_nwpTrue_pvTrue_topoTrue_fp16True_effectiveBatch16/epoch=0-step=1800.ckpt")  # , forecast_steps=args.steps*4)
     # trainer.tune(model)
-    trainer.fit(model, train_dataloaders=dataloader) #, val_dataloaders=val_dataloader)
+    trainer.fit(model, train_dataloaders=dataloader,)
