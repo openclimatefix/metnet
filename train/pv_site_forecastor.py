@@ -139,7 +139,7 @@ class LitModel(pl.LightningModule):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_2", action="store_true", help="Use MetNet-2")
-    parser.add_argument("--config", default="national.yaml")
+    parser.add_argument("--config", default="pv_site.yaml")
     parser.add_argument("--num_workers", type=int, default=32)
     parser.add_argument("--batch", default=4, type=int)
     parser.add_argument("--fp16", action="store_true")
