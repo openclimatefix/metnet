@@ -13,11 +13,6 @@ input_data:
 
   #---------------------- NWP -------------------
   nwp:
-    nwp_channels:
-      - dswrf
-      - si10
-      - t
-      - prate
     nwp_image_size_pixels_height: 128
     nwp_image_size_pixels_width: 128
     nwp_zarr_path: /mnt/leonardo/storage_c/UKV_intermediate_version_7.zarr
