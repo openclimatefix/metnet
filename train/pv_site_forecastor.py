@@ -176,7 +176,7 @@ if __name__ == "__main__":
         use_hrv=args.hrv,
         use_pv=True,
         use_topo=args.topo,
-        pv_in_image=args.pv,
+        pv_in_image=True,
         output_size=args.size
     ).set_length(8000)
     dataloader = DataLoader(
@@ -192,7 +192,7 @@ if __name__ == "__main__":
         use_hrv=args.hrv,
         use_pv=True,
         use_topo=args.topo,
-        pv_in_image=args.pv,
+        pv_in_image=True,
         output_size=args.size
     ).set_length(400)
     val_dataloader = DataLoader(
@@ -218,7 +218,7 @@ if __name__ == "__main__":
                 f"_sat{args.sat}"
                 f"_hrv{args.hrv}"
                 f"_nwp{args.nwp}"
-                f"_pv{args.pv}"
+                f"_pv{True}"
                 f"_topo{args.topo}"
                 f"_fp16{args.fp16}"
                 f"_effectiveBatch{args.batch*args.accumulate}_att{args.att}_hidden{args.hidden}",
