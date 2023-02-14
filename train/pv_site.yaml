@@ -3,7 +3,7 @@ general:
   name: metnet_pv_site
 input_data:
   default_forecast_minutes: 0
-  default_history_minutes: 60
+  default_history_minutes: 150
   #---------------------- GSP -------------------
   gsp:
     gsp_zarr_path: /mnt/storage_ssd_4tb/metnet_train/pv_gsp.zarr
@@ -13,11 +13,6 @@ input_data:
 
   #---------------------- NWP -------------------
   nwp:
-    nwp_channels:
-      - dswrf
-      - si10
-      - t
-      - prate
     nwp_image_size_pixels_height: 128
     nwp_image_size_pixels_width: 128
     nwp_zarr_path: /mnt/leonardo/storage_c/UKV_intermediate_version_7.zarr
@@ -34,7 +29,7 @@ input_data:
       #  pv_filename: /mnt/storage_ssd_4tb/metnet_train/PVOutput.org/UK_PV_timeseries_batch.nc
       #  pv_metadata_filename: /mnt/storage_ssd_4tb/metnet_train/PVOutput.org/UK_PV_metadata.csv
     get_center: false
-    history_minutes: 90
+    history_minutes: 150 # 30 timesteps + t0 (To match NWP sequence length)
     forecast_minutes: 2160 # 36 hours
     log_level: "INFO"
 
