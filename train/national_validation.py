@@ -1,12 +1,10 @@
-from metnet import MetNet, MetNet2
+from metnet import MetNet
 import torch
-from collections import defaultdict
 from ocf_datapipes.training.metnet_national import metnet_national_datapipe
 from torch.utils.data import DataLoader, default_collate
 import argparse
 import datetime
 import numpy as np
-import glob
 
 def collate_fn(batch):
     x, y, start_time = batch
@@ -90,19 +88,16 @@ if __name__ == "__main__":
     # Change to save every forecast, and every ground truth + time period for it
     # Calculate the errors after, so save out all of them
     # Save as init time -> [[forecast],[truth],[mae],[rmse],[mse]]
-    import copy
     per_step_losses = [{} for _ in range(96)]
     with torch.no_grad():
         for i, batch in enumerate(dataloader):
             x, y, start_time = batch
-            x = x.half()
-            y = y.half()
             for f in range(96):
                 y_hat = model(x, f)
                 mse = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f+1, 0])
                 rmse = torch.sqrt(mse)
                 mae = mae_loss(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f+1, 0])
-                per_step_losses[f][start_time[0]] = [y_hat.detach().numpy(),
+                per_step_losses[f][start_time] = [y_hat.detach().numpy(),
                                                   y.detach().numpy(),
                                                   mse.detach().numpy(),
                                                   rmse.detach().numpy(),

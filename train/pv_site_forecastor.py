@@ -1,23 +1,77 @@
-from metnet.models import MetNet, MetNet2, MetNetSingleShot
-from torchinfo import summary
+import torch
+try:
+    torch.multiprocessing.set_start_method('spawn')
+    import torch.multiprocessing as mp
+    mp.set_start_method('spawn')
+except RuntimeError:
+    pass
+
+import fsspec.asyn
+from ocf_datapipes.training.metnet_pv_site import metnet_site_datapipe
+from metnet.models import MetNetSingleShot
 import matplotlib
 matplotlib.use('agg')
 import torch
 import torch.nn.functional as F
-from ocf_datapipes.training.metnet_pv_site import metnet_site_datapipe
-from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint
 import argparse
 import datetime
-import numpy as np
-from torchdata.datapipes.iter import IterableWrapper
 from torch.utils.data import DataLoader, default_collate
 import matplotlib.pyplot as plt
-from nowcasting_utils.models.metrics import (
-    mae_each_forecast_horizon,
-    mse_each_forecast_horizon,
-)
+import warnings
+warnings.filterwarnings("ignore")
+
+def set_fsspec_for_multiprocess() -> None:
+    """
+    Clear reference to the loop and thread.
+    This is a nasty hack that was suggested but NOT recommended by the lead fsspec developer!
+    This appears necessary otherwise gcsfs hangs when used after forking multiple worker processes.
+    Only required for fsspec >= 0.9.0
+    See:
+    - https://github.com/fsspec/gcsfs/issues/379#issuecomment-839929801
+    - https://github.com/fsspec/filesystem_spec/pull/963#issuecomment-1131709948
+    TODO: Try deleting this two lines to make sure this is still relevant.
+    """
+    fsspec.asyn.iothread[0] = None
+    fsspec.asyn.loop[0] = None
+
+def worker_init_fn(worker_id):
+    """Configures each dataset worker process.
+    1. Get fsspec ready for multi process
+    2. To call NowcastingDataset.per_worker_init().
+    """
+    # fix for fsspec when using multprocess
+    set_fsspec_for_multiprocess()
+def mse_each_forecast_horizon(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """
+    Get MSE for each forecast horizon
+
+    Args:
+        output: The model estimate of size (batch_size, forecast_length)
+        target: The truth of size (batch_size, forecast_length)
+
+    Returns: A tensor of size (forecast_length)
+
+    """
+    return torch.mean((output - target) ** 2, dim=0)
+
+
+def mae_each_forecast_horizon(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """
+    Get MAE for each forecast horizon
+
+    Args:
+        output: The model estimate of size (batch_size, forecast_length)
+        target: The truth of size (batch_size, forecast_length)
+
+    Returns: A tensor of size (forecast_length)
+
+    """
+    return torch.mean(torch.abs(output - target), dim=0)
+
+
+torch.set_float32_matmul_precision('medium')
 
 def collate_fn(batch):
     x, y, start_time = batch
@@ -60,6 +114,9 @@ class LitModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         tag = "train"
         x, y = batch
+        y = y[0]
+        x = torch.nan_to_num(input=x, posinf=1.0, neginf=0.0)
+        y = torch.nan_to_num(input=y, posinf=1.0, neginf=0.0)
         x = x.half()
         y = y.half()
         y = y[:,1:,0] # Take out the T0 output
@@ -127,10 +184,10 @@ class LitModel(pl.LightningModule):
             raise ValueError('TensorBoard Logger not found')
 
             # Log the images (Give them different names)
-        for img_idx, (image, y_true, y_pred, batch_idx) in enumerate(zip(*viz_batch)):
+        for img_idx, (_, y_true, y_pred, batch_idx) in enumerate(zip(*viz_batch)):
             fig = plt.figure()
-            plt.plot(list(range(70)), y_pred.cpu().detach().numpy(), label="Forecast")
-            plt.plot(list(range(70)), y_true.cpu().detach().numpy(), label="Truth")
+            plt.plot(list(range(360)), y_pred.cpu().detach().numpy(), label="Forecast")
+            plt.plot(list(range(360)), y_true.cpu().detach().numpy(), label="Truth")
             plt.title("GT vs Pred PV Site Single Shot")
             plt.legend(loc="best")
             tb_logger.add_figure(f"GT_Vs_Pred/{img_idx}", fig, batch_idx)
@@ -158,13 +215,15 @@ if __name__ == "__main__":
     parser.add_argument("--num_embedding_size", type=int, default=30000)
     parser.add_argument("--pv_out_channels", type=int, default=256)
     parser.add_argument("--pv_embed_channels", type=int, default=256)
-    parser.add_argument("--steps", type=int, default=420, help="Number of forecast steps per pass")
+    parser.add_argument("--steps", type=int, default=360, help="Number of forecast steps per pass")
     parser.add_argument("--size", type=int, default=256, help="Input Size in pixels")
     parser.add_argument("--center_size", type=int, default=64, help="Center Crop Size")
+    parser.add_argument("--center_meter", type=int, default=64_000, help="Center Crop Size")
+    parser.add_argument("--context_meter", type=int, default=512_000, help="Center Crop Size")
     parser.add_argument("--cpu", action="store_true", help="Force run on CPU")
     parser.add_argument("--accumulate", type=int, default=1)
     args = parser.parse_args()
-    skip_num = int(420 / args.steps)
+    skip_num = 1 #int(360 / args.steps)
     # Dataprep
     datapipe = metnet_site_datapipe(
         args.config,
@@ -177,11 +236,14 @@ if __name__ == "__main__":
         use_pv=True,
         use_topo=args.topo,
         pv_in_image=True,
-        output_size=args.size
-    ).set_length(8000)
+        output_size=args.size,
+        center_size_meters=args.center_meter,
+        context_size_meters=args.context_meter
+    )
     dataloader = DataLoader(
         dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
     )
+    """
     val_datapipe = metnet_site_datapipe(
         args.config,
         start_time=datetime.datetime(2021, 1, 1),
@@ -194,10 +256,11 @@ if __name__ == "__main__":
         use_topo=args.topo,
         pv_in_image=True,
         output_size=args.size
-    ).set_length(400)
+    )
     val_dataloader = DataLoader(
         dataset=val_datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
     )
+    """
     # Get the shape of the batch
     batch = next(iter(dataloader))
     input_channels = batch[0].shape[
@@ -211,7 +274,7 @@ if __name__ == "__main__":
         mode="max",
         save_last=True,
         save_top_k=10,
-        dirpath=f"./pv_metnet_single_shot_nmae_relu_35hour_inchannels{input_channels}"
+        dirpath=f"./pv_metnet_single_shot_nmae_relu_30hour_inchannels{input_channels}"
                 f"_step{args.steps}"
                 f"_size{args.size}"
                 f"_sun{args.sun}"
@@ -247,9 +310,10 @@ if __name__ == "__main__":
         center_crop_size=args.center_size,
         att_layers=args.att,
         hidden_dim=args.hidden,
+        forecast_steps=args.steps
 
     )  # , forecast_steps=args.steps*4) #.load_from_checkpoint("/mnt/storage_ssd_4tb/metnet_models/metnet_inchannels44_step8_size256_sunTrue_satTrue_hrvTrue_nwpTrue_pvTrue_topoTrue_fp16True_effectiveBatch16/epoch=0-step=1800.ckpt")  # , forecast_steps=args.steps*4)
     # trainer.tune(model)
     #model = model.load_from_checkpoint("/mnt/storage_ssd_4tb/metnet_models/metnet_gsp_single_shot_nmae_relu_inchannels44_step96_size256_sunTrue_satTrue_hrvTrue_nwpTrue_pvFalse_topoTrue_fp16True_effectiveBatch36_att2_hidden512/last-v1.ckpt")
-    trainer.fit(model, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
+    trainer.fit(model, train_dataloaders=dataloader)
 

@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-
 from metnet import MetNet, MetNet2, MetNetPV
 
 
@@ -48,24 +47,29 @@ def test_metnet_backwards():
 
 def test_metnet_pv_backwards():
     model = MetNetPV(
-        hidden_dim=32,
+        hidden_dim=128,
+        num_att_layers=2,
+        num_att_heads=16,
         forecast_steps=24,
         input_channels=16,
-        output_channels=12,
+        output_channels=1,
         sat_channels=12,
-        input_size=32,
+        input_size=64,
+        avg_pool_size=2,
+        pv_fc_out_channels=128,
+        pv_id_embedding_channels=256,
     )
     # MetNet expects original HxW to be 4x the input size
-    x = torch.randn((2, 12, 16, 128, 128))
+    x = torch.randn((2, 12, 16, 256, 256))
     pv_x = torch.randn((2, 12, 1, 1000))
-    pv_idx = torch.randint(900,(2,1000))
+    pv_idx = torch.randint(5000,(2,1000))
     out = []
     for lead_time in range(24):
         out.append(model(x, pv_x, pv_idx, lead_time))
     out = torch.stack(out, dim=1)
     # MetNet creates predictions for the center 1/4th
-    assert out.size() == (2, 24, 12)
-    y = torch.randn((2, 24, 12))
+    assert out.size() == (2, 24, 1)
+    y = torch.randn((2, 24, 1))
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
 

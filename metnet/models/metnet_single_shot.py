@@ -3,7 +3,7 @@ import torch.nn as nn
 from axial_attention import AxialAttention, AxialPositionalEmbedding
 from huggingface_hub import PyTorchModelHubMixin
 
-from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
+from metnet.layers import ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
 
 
 class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):

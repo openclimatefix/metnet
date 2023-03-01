@@ -30,9 +30,9 @@ input_data:
       - label: solar_sheffield_passiv
         pv_filename: /mnt/storage_ssd_4tb/metnet_train/Passiv/ocf_formatted/v0/passiv.netcdf
         pv_metadata_filename: /mnt/storage_ssd_4tb/metnet_train/Passiv/ocf_formatted/v0/system_metadata_OCF_ONLY.csv
-      - label: pvoutput.org
-        pv_filename: /mnt/storage_ssd_4tb/metnet_train/PVOutput.org/UK_PV_timeseries_batch.nc
-        pv_metadata_filename: /mnt/storage_ssd_4tb/metnet_train/PVOutput.org/UK_PV_metadata.csv
+      #- label: pvoutput.org
+      #  pv_filename: /mnt/storage_ssd_4tb/metnet_train/PVOutput.org/UK_PV_timeseries_batch.nc
+      #  pv_metadata_filename: /mnt/storage_ssd_4tb/metnet_train/PVOutput.org/UK_PV_metadata.csv
     get_center: false
     history_minutes: 90
     forecast_minutes: 0
