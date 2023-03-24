@@ -105,13 +105,15 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
 
         # hard code the number of pv timesteps - 12 is 1 hour as its in 5 minutes
         n_pv_timestamps = 12
-        num_image_features = ((input_size // 4 // avg_pool_size) ** 2 * hidden_dim)
+        num_image_features = (input_size // 4 // avg_pool_size) ** 2 * hidden_dim
         # final output features is
         # 1. 2048, +
         # 2. (n_pv_timestamps * pv channels) +
         # 3. (number of pv systems * embedding dims)
         fc1_input_features = (
-            num_image_features + n_pv_timestamps * pv_fc_out_channels + pv_id_embedding_channels * num_pv_systems
+            num_image_features
+            + n_pv_timestamps * pv_fc_out_channels
+            + pv_id_embedding_channels * num_pv_systems
         )
 
         # FC layer, takes in 'econcded_timesteps', pv history, and embedding of pv ids

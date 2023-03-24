@@ -1,26 +1,33 @@
 import torch
+
 try:
-    torch.multiprocessing.set_start_method('spawn')
+    torch.multiprocessing.set_start_method("spawn")
     import torch.multiprocessing as mp
-    mp.set_start_method('spawn')
+
+    mp.set_start_method("spawn")
 except RuntimeError:
     pass
 
 import fsspec.asyn
-from ocf_datapipes.training.metnet_pv_site import metnet_site_datapipe
-from metnet.models import MetNetSingleShot
 import matplotlib
-matplotlib.use('agg')
-import torch
-import torch.nn.functional as F
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
+from ocf_datapipes.training.metnet_pv_site import metnet_site_datapipe
+
+from metnet.models import MetNetSingleShot
+
+matplotlib.use("agg")
 import argparse
 import datetime
-from torch.utils.data import DataLoader, default_collate
-import matplotlib.pyplot as plt
 import warnings
+
+import matplotlib.pyplot as plt
+import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
+from pytorch_lightning.callbacks import ModelCheckpoint
+from torch.utils.data import DataLoader, default_collate
+
 warnings.filterwarnings("ignore")
+
 
 def set_fsspec_for_multiprocess() -> None:
     """
@@ -36,6 +43,7 @@ def set_fsspec_for_multiprocess() -> None:
     fsspec.asyn.iothread[0] = None
     fsspec.asyn.loop[0] = None
 
+
 def worker_init_fn(worker_id):
     """Configures each dataset worker process.
     1. Get fsspec ready for multi process
@@ -43,6 +51,8 @@ def worker_init_fn(worker_id):
     """
     # fix for fsspec when using multprocess
     set_fsspec_for_multiprocess()
+
+
 def mse_each_forecast_horizon(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """
     Get MSE for each forecast horizon
@@ -71,25 +81,26 @@ def mae_each_forecast_horizon(output: torch.Tensor, target: torch.Tensor) -> tor
     return torch.mean(torch.abs(output - target), dim=0)
 
 
-torch.set_float32_matmul_precision('medium')
+torch.set_float32_matmul_precision("medium")
+
 
 def collate_fn(batch):
     x, y, start_time = batch
     collated_batch = default_collate((x, y))
     return (collated_batch[0], collated_batch[1], start_time)
 
+
 class LitModel(pl.LightningModule):
     def __init__(
         self,
-            use_2: bool = False,
+        use_2: bool = False,
         input_channels=42,
         center_crop_size=64,
         input_size=256,
         forecast_steps=70,
-            hidden_dim=2048,
-            att_layers=2,
+        hidden_dim=2048,
+        att_layers=2,
         lr=1e-4,
-
     ):
         super().__init__()
         self.forecast_steps = forecast_steps
@@ -109,7 +120,7 @@ class LitModel(pl.LightningModule):
         self.save_hyperparameters()
 
     def forward(self, x):
-        return F.relu(self.pooler(self.model(x))[:,:,0,0])
+        return F.relu(self.pooler(self.model(x))[:, :, 0, 0])
 
     def training_step(self, batch, batch_idx):
         tag = "train"
@@ -119,10 +130,10 @@ class LitModel(pl.LightningModule):
         y = torch.nan_to_num(input=y, posinf=1.0, neginf=0.0)
         x = x.half()
         y = y.half()
-        y = y[:,1:,0] # Take out the T0 output
+        y = y[:, 1:, 0]  # Take out the T0 output
         y_hat = self(x)
-        #loss = self.weighted_losses.get_mse_exp(y_hat, y)
-        #self.log("loss", loss)
+        # loss = self.weighted_losses.get_mse_exp(y_hat, y)
+        # self.log("loss", loss)
 
         # calculate mse, mae
         mse_loss = F.mse_loss(y_hat, y)
@@ -137,9 +148,9 @@ class LitModel(pl.LightningModule):
                 f"MSE/{tag}": mse_loss,
                 f"NMAE/{tag}": nmae_loss,
             },
-            #on_step=True,
-            #on_epoch=True,
-            #sync_dist=True  # Required for distributed training
+            # on_step=True,
+            # on_epoch=True,
+            # sync_dist=True  # Required for distributed training
             # (even multi-GPU on signle machine).
         )
 
@@ -158,9 +169,9 @@ class LitModel(pl.LightningModule):
 
         self.log_dict(
             {**metrics_mse, **metrics_mae},
-            #on_step=True,
-            #on_epoch=True,
-            #sync_dist=True  # Required for distributed training
+            # on_step=True,
+            # on_epoch=True,
+            # sync_dist=True  # Required for distributed training
             # (even multi-GPU on signle machine).
         )
 
@@ -181,7 +192,7 @@ class LitModel(pl.LightningModule):
                 break
 
         if tb_logger is None:
-            raise ValueError('TensorBoard Logger not found')
+            raise ValueError("TensorBoard Logger not found")
 
             # Log the images (Give them different names)
         for img_idx, (_, y_true, y_pred, batch_idx) in enumerate(zip(*viz_batch)):
@@ -223,7 +234,7 @@ if __name__ == "__main__":
     parser.add_argument("--cpu", action="store_true", help="Force run on CPU")
     parser.add_argument("--accumulate", type=int, default=1)
     args = parser.parse_args()
-    skip_num = 1 #int(360 / args.steps)
+    skip_num = 1  # int(360 / args.steps)
     # Dataprep
     datapipe = metnet_site_datapipe(
         args.config,
@@ -238,7 +249,7 @@ if __name__ == "__main__":
         pv_in_image=True,
         output_size=args.size,
         center_size_meters=args.center_meter,
-        context_size_meters=args.context_meter
+        context_size_meters=args.context_meter,
     )
     dataloader = DataLoader(
         dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
@@ -275,16 +286,16 @@ if __name__ == "__main__":
         save_last=True,
         save_top_k=10,
         dirpath=f"./pv_metnet_single_shot_nmae_relu_30hour_inchannels{input_channels}"
-                f"_step{args.steps}"
-                f"_size{args.size}"
-                f"_sun{args.sun}"
-                f"_sat{args.sat}"
-                f"_hrv{args.hrv}"
-                f"_nwp{args.nwp}"
-                f"_pv{True}"
-                f"_topo{args.topo}"
-                f"_fp16{args.fp16}"
-                f"_effectiveBatch{args.batch*args.accumulate}_att{args.att}_hidden{args.hidden}_centerm{args.center_meter}_contextm{args.context_meter}",
+        f"_step{args.steps}"
+        f"_size{args.size}"
+        f"_sun{args.sun}"
+        f"_sat{args.sat}"
+        f"_hrv{args.hrv}"
+        f"_nwp{args.nwp}"
+        f"_pv{True}"
+        f"_topo{args.topo}"
+        f"_fp16{args.fp16}"
+        f"_effectiveBatch{args.batch*args.accumulate}_att{args.att}_hidden{args.hidden}_centerm{args.center_meter}_contextm{args.context_meter}",
     )
     from pytorch_lightning import loggers as pl_loggers
 
@@ -302,7 +313,7 @@ if __name__ == "__main__":
         # limit_train_batches=500 * args.accumulate,
         accumulate_grad_batches=args.accumulate,
         callbacks=[model_checkpoint],
-        logger=tb_logger
+        logger=tb_logger,
     )
     model = LitModel(
         input_channels=input_channels,
@@ -310,10 +321,8 @@ if __name__ == "__main__":
         center_crop_size=args.center_size,
         att_layers=args.att,
         hidden_dim=args.hidden,
-        forecast_steps=args.steps
-
+        forecast_steps=args.steps,
     )  # , forecast_steps=args.steps*4) #.load_from_checkpoint("/mnt/storage_ssd_4tb/metnet_models/metnet_inchannels44_step8_size256_sunTrue_satTrue_hrvTrue_nwpTrue_pvTrue_topoTrue_fp16True_effectiveBatch16/epoch=0-step=1800.ckpt")  # , forecast_steps=args.steps*4)
     # trainer.tune(model)
-    #model = model.load_from_checkpoint("/mnt/storage_ssd_4tb/metnet_models/metnet_gsp_single_shot_nmae_relu_inchannels44_step96_size256_sunTrue_satTrue_hrvTrue_nwpTrue_pvFalse_topoTrue_fp16True_effectiveBatch36_att2_hidden512/last-v1.ckpt")
+    # model = model.load_from_checkpoint("/mnt/storage_ssd_4tb/metnet_models/metnet_gsp_single_shot_nmae_relu_inchannels44_step96_size256_sunTrue_satTrue_hrvTrue_nwpTrue_pvFalse_topoTrue_fp16True_effectiveBatch36_att2_hidden512/last-v1.ckpt")
     trainer.fit(model, train_dataloaders=dataloader)
-

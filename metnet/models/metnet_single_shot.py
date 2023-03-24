@@ -80,7 +80,9 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
             ]
         )
 
-        self.head = nn.Conv2d(hidden_dim, forecast_steps, kernel_size=(1, 1))  # Reduces to forecast steps
+        self.head = nn.Conv2d(
+            hidden_dim, forecast_steps, kernel_size=(1, 1)
+        )  # Reduces to forecast steps
 
     def encode_timestep(self, x):
 

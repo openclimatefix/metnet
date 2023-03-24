@@ -1,12 +1,14 @@
-from metnet import MetNet, MetNet2
-import torch
-from ocf_datapipes.training.metnet_national import metnet_national_datapipe
-from torch.utils.data import DataLoader
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
 import argparse
 import datetime
+
 import numpy as np
+import pytorch_lightning as pl
+import torch
+from ocf_datapipes.training.metnet_national import metnet_national_datapipe
+from pytorch_lightning.callbacks import ModelCheckpoint
+from torch.utils.data import DataLoader
+
+from metnet import MetNet, MetNet2
 
 
 class LitModel(pl.LightningModule):
@@ -18,7 +20,7 @@ class LitModel(pl.LightningModule):
         input_size=256,
         forecast_steps=96,
         hidden_dim=2048,
-            att_layers=2,
+        att_layers=2,
         lr=3e-4,
     ):
         super().__init__()
@@ -53,16 +55,16 @@ class LitModel(pl.LightningModule):
         x = x.half()
         y = y.half()
         f = np.random.randint(1, skip_num + 1)  # Index 0 is the current generation
-        y_hat = self(x, f-1) # torch.tensor(f-1).long().type_as(x))
+        y_hat = self(x, f - 1)  # torch.tensor(f-1).long().type_as(x))
         loss_fn = torch.nn.MSELoss()
         loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
         self.log(f"forecast_step_{f-1}_loss", loss, on_step=True)
         total_num = 1
-        fs = np.random.choice(list(range(f,97)), 96//skip_num)
+        fs = np.random.choice(list(range(f, 97)), 96 // skip_num)
         for i, f in enumerate(
             range(f + 1, 97, skip_num)
         ):  # Can only do 12 hours, so extend out to 48 by doing every 4th one
-            y_hat = self(x, fs[i]-1) # torch.tensor(f-1).long().type_as(x))
+            y_hat = self(x, fs[i] - 1)  # torch.tensor(f-1).long().type_as(x))
             step_loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, fs[i], 0])
             loss += step_loss
             self.log(f"forecast_step_{fs[i]}_loss", step_loss, on_step=True)
@@ -108,7 +110,7 @@ if __name__ == "__main__":
         use_sat=args.sat,
         use_hrv=args.hrv,
         use_pv=args.pv,
-        use_topo=args.topo
+        use_topo=args.topo,
     )
     dataloader = DataLoader(
         dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
@@ -126,18 +128,18 @@ if __name__ == "__main__":
     model_checkpoint = ModelCheckpoint(
         every_n_train_steps=100,
         dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'_2' if args.use_2 else ''}_inchannels{input_channels}"
-                f"_step{args.steps}"
-                f"_size{args.size}"
-                f"_sun{args.sun}"
-                f"_sat{args.sat}"
-                f"_hrv{args.hrv}"
-                f"_nwp{args.nwp}"
-                f"_pv{args.pv}"
-                f"_topo{args.topo}"
-                f"_fp16{args.fp16}"
-                f"_effectiveBatch{args.batch*args.accumulate}"
-                f"_hidden{args.hidden}"
-                f"_att_layers{args.att}",
+        f"_step{args.steps}"
+        f"_size{args.size}"
+        f"_sun{args.sun}"
+        f"_sat{args.sat}"
+        f"_hrv{args.hrv}"
+        f"_nwp{args.nwp}"
+        f"_pv{args.pv}"
+        f"_topo{args.topo}"
+        f"_fp16{args.fp16}"
+        f"_effectiveBatch{args.batch*args.accumulate}"
+        f"_hidden{args.hidden}"
+        f"_att_layers{args.att}",
     )
     # early_stopping = EarlyStopping(monitor="loss")
     trainer = pl.Trainer(
@@ -152,7 +154,7 @@ if __name__ == "__main__":
         # limit_train_batches=500 * args.accumulate,
         accumulate_grad_batches=args.accumulate,
         callbacks=[model_checkpoint],
-        logger=tb_logger
+        logger=tb_logger,
     )
     model = LitModel(
         input_channels=input_channels,
@@ -160,7 +162,7 @@ if __name__ == "__main__":
         use_metnet2=args.use_2,
         center_crop_size=args.center_size,
         att_layers=args.att,
-        hidden_dim=args.hidden
+        hidden_dim=args.hidden,
     )  # , forecast_steps=args.steps*4)
     # trainer.tune(model)
-    trainer.fit(model, train_dataloaders=dataloader) #, val_dataloaders=val_dataloader)
+    trainer.fit(model, train_dataloaders=dataloader)  # , val_dataloaders=val_dataloader)

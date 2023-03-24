@@ -1,14 +1,17 @@
-from metnet import MetNet
+import argparse
+import datetime
+
+import numpy as np
 import torch
 from ocf_datapipes.training.metnet_national import metnet_national_datapipe
 from torch.utils.data import DataLoader, default_collate
-import argparse
-import datetime
-import numpy as np
+
+from metnet import MetNet
+
 
 def collate_fn(batch):
     x, y, start_time = batch
-    collated_batch = default_collate((x,y))
+    collated_batch = default_collate((x, y))
     return (collated_batch[0], collated_batch[1], start_time)
 
 
@@ -45,10 +48,14 @@ if __name__ == "__main__":
         use_hrv=args.hrv,
         use_pv=args.pv,
         use_topo=args.topo,
-        mode="val"
+        mode="val",
     )
     dataloader = DataLoader(
-        dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers, collate_fn=collate_fn
+        dataset=datapipe,
+        batch_size=args.batch,
+        pin_memory=True,
+        num_workers=args.num_workers,
+        collate_fn=collate_fn,
     )
     # Get the shape of the batch
     batch = next(iter(dataloader))
@@ -58,31 +65,33 @@ if __name__ == "__main__":
     ]  # [Batch. Time, Channel, Width, Height] for now assume square
     print(f"Number of input channels: {input_channels}")
     # Validation steps
-    model = MetNet.from_pretrained("openclimatefix/metnet-uk-metoffice-eumetsat-hrv-sun-pv-topo-256")
+    model = MetNet.from_pretrained(
+        "openclimatefix/metnet-uk-metoffice-eumetsat-hrv-sun-pv-topo-256"
+    )
     model.eval()
 
     """
-    
+
     Comparison One (divide by 13852 to get %):
-    
+
     val
     me=-65.77421516033499
     mae=189.47224986708292
     rmse=383.94737252385636
-    
+
     train
     me=-50.971601258979554
     mae=232.5513672145747
     rmse=456.4136986336792
-    
+
     """
 
     # Now iterate through all times
     first_batch = None
     first_x = None
     first_y = None
-    loss_fn = torch.nn.MSELoss() # MSE
-    mae_loss = torch.nn.L1Loss() # MAE
+    loss_fn = torch.nn.MSELoss()  # MSE
+    mae_loss = torch.nn.L1Loss()  # MAE
 
     # Loss by timestep into future
     # Change to save every forecast, and every ground truth + time period for it
@@ -94,20 +103,24 @@ if __name__ == "__main__":
             x, y, start_time = batch
             for f in range(96):
                 y_hat = model(x, f)
-                mse = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f+1, 0])
+                mse = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f + 1, 0])
                 rmse = torch.sqrt(mse)
-                mae = mae_loss(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f+1, 0])
-                per_step_losses[f][start_time] = [y_hat.detach().numpy(),
-                                                  y.detach().numpy(),
-                                                  mse.detach().numpy(),
-                                                  rmse.detach().numpy(),
-                                                  mae.detach().numpy()]
-            if i > 11663: # Gone over the 9 months, so break
+                mae = mae_loss(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f + 1, 0])
+                per_step_losses[f][start_time] = [
+                    y_hat.detach().numpy(),
+                    y.detach().numpy(),
+                    mse.detach().numpy(),
+                    rmse.detach().numpy(),
+                    mae.detach().numpy(),
+                ]
+            if i > 11663:  # Gone over the 9 months, so break
                 break
     np.save("metnet_all_uses", per_step_losses, allow_pickle=True)
     # Save out to disk
     import json
-    with open(f"metnet{'_2' if args.use_2 else ''}_inchannels{input_channels}_step{args.steps}"
+
+    with open(
+        f"metnet{'_2' if args.use_2 else ''}_inchannels{input_channels}_step{args.steps}"
         f"_size{args.size}"
         f"_sun{args.sun}"
         f"_sat{args.sat}"
@@ -116,7 +129,7 @@ if __name__ == "__main__":
         f"_pv{args.pv}"
         f"_topo{args.topo}"
         f"_fp16{args.fp16}"
-        f"_effectiveBatch{args.batch * args.accumulate}", 'w') as fout:
+        f"_effectiveBatch{args.batch * args.accumulate}",
+        "w",
+    ) as fout:
         json.dump(per_step_losses, fout)
-
-

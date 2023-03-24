@@ -18,7 +18,12 @@ def test_metnet_creation():
     with torch.no_grad():
         out = model(x)
     # MetNet creates predictions for the center 1/4th
-    assert out.size() == (2, 12, 16, 16,)
+    assert out.size() == (
+        2,
+        12,
+        16,
+        16,
+    )
     assert not torch.isnan(out).any(), "Output included NaNs"
 
 
@@ -38,11 +43,16 @@ def test_metnet_backwards():
         out.append(model(x, lead_time))
     out = torch.stack(out, dim=1)
     # MetNet creates predictions for the center 1/4th
-    assert out.size() == (2, 24, 12, 8, 8,)
+    assert out.size() == (
+        2,
+        24,
+        12,
+        8,
+        8,
+    )
     y = torch.randn((2, 24, 12, 8, 8))
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
-
 
 
 def test_metnet_pv_backwards():
@@ -62,7 +72,7 @@ def test_metnet_pv_backwards():
     # MetNet expects original HxW to be 4x the input size
     x = torch.randn((2, 12, 16, 256, 256))
     pv_x = torch.randn((2, 12, 1, 1000))
-    pv_idx = torch.randint(5000,(2,1000))
+    pv_idx = torch.randint(5000, (2, 1000))
     out = []
     for lead_time in range(24):
         out.append(model(x, pv_x, pv_idx, lead_time))
@@ -72,6 +82,7 @@ def test_metnet_pv_backwards():
     y = torch.randn((2, 24, 1))
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
+
 
 def test_load_metnet_hf():
     model = MetNet.from_pretrained("openclimatefix/metnet")
@@ -97,7 +108,12 @@ def test_metnet2_creation():
     with torch.no_grad():
         out = model(x)
     # MetNet creates predictions for the center 1/4th
-    assert out.size() == (2, 12, 128, 128,)
+    assert out.size() == (
+        2,
+        12,
+        128,
+        128,
+    )
     assert not torch.isnan(out).any(), "Output included NaNs"
 
 
@@ -118,7 +134,13 @@ def test_metnet2_backward():
         out.append(model(x, lead_time))
     out = torch.stack(out, dim=1)
     # MetNet creates predictions for the center 1/4th
-    assert out.size() == (2, 4, 12, 64, 64,)
+    assert out.size() == (
+        2,
+        4,
+        12,
+        64,
+        64,
+    )
     y = torch.rand((2, 4, 12, 64, 64))
     F.mse_loss(out, y).backward()
     assert not torch.isnan(out).any(), "Output included NaNs"
