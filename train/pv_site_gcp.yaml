@@ -49,7 +49,7 @@ input_data:
       - WV_073
     satellite_image_size_pixels_height: 48
     satellite_image_size_pixels_width: 96
-    satellite_zarr_path: "gs://solar-pv-nowcasting-data/satellite/EUMETSAT/SEVIRI_RSS/v4/20*_nonhrv.zarr"
+    satellite_zarr_path: "gs://solar-pv-nowcasting-data/satellite/EUMETSAT/SEVIRI_RSS/v5/2021_nonhrv.zarr"
     keep_dawn_dusk_hours: 2
 
   #---------------------- HRVSatellite -------------
@@ -58,11 +58,11 @@ input_data:
       - HRV
     hrvsatellite_image_size_pixels_height: 128
     hrvsatellite_image_size_pixels_width: 256
-    hrvsatellite_zarr_path: "gs://solar-pv-nowcasting-data/satellite/EUMETSAT/SEVIRI_RSS/v4/20*_hrv.zarr"
+    hrvsatellite_zarr_path: "gs://solar-pv-nowcasting-data/satellite/EUMETSAT/SEVIRI_RSS/v4/2021_hrv.zarr"
 
   # ------------------------- Topographic ----------------
   topographic:
-    topographic_filename: "solar-pv-nowcasting-data/Topographic/europe_dem_1km_osgb.tif"
+    topographic_filename: "gs://solar-pv-nowcasting-data/Topographic/europe_dem_1km_osgb.tif"
     topographic_image_size_pixels_width: 300
     topographic_image_size_pixels_height: 300
 

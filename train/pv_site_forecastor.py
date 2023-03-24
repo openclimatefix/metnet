@@ -284,7 +284,7 @@ if __name__ == "__main__":
                 f"_pv{True}"
                 f"_topo{args.topo}"
                 f"_fp16{args.fp16}"
-                f"_effectiveBatch{args.batch*args.accumulate}_att{args.att}_hidden{args.hidden}",
+                f"_effectiveBatch{args.batch*args.accumulate}_att{args.att}_hidden{args.hidden}_centerm{args.center_meter}_contextm{args.context_meter}",
     )
     from pytorch_lightning import loggers as pl_loggers
 
