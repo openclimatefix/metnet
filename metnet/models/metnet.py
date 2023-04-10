@@ -82,7 +82,6 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
 
     def encode_timestep(self, x, fstep=1):
-
         # Preprocess Tensor
         x = self.preprocessor(x)
 

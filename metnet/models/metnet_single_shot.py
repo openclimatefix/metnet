@@ -3,7 +3,7 @@ import torch.nn as nn
 from axial_attention import AxialAttention, AxialPositionalEmbedding
 from huggingface_hub import PyTorchModelHubMixin
 
-from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
+from metnet.layers import ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
 
 
 class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
@@ -80,10 +80,11 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
             ]
         )
 
-        self.head = nn.Conv2d(hidden_dim, forecast_steps, kernel_size=(1, 1))  # Reduces to forecast steps
+        self.head = nn.Conv2d(
+            hidden_dim, forecast_steps, kernel_size=(1, 1)
+        )  # Reduces to forecast steps
 
     def encode_timestep(self, x):
-
         # Preprocess Tensor
         x = self.preprocessor(x)
 
