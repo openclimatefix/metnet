@@ -201,7 +201,6 @@ class ConvGRU(nn.Module):
 
         seq_len = len(cur_layer_input)
 
-        layer_output_list = []
         last_state_list = []
 
         for l, (gru_cell, hid_dp) in enumerate(zip(self.cell_list, self.hidden_dps)):

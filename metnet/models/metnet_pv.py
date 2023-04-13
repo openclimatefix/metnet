@@ -96,7 +96,6 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         )
 
     def encode_timestep(self, x, pv_yield_history, fstep=1):
-
         # Preprocess Tensor
         x = self.preprocessor(x)
 
@@ -110,7 +109,9 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         _, state = self.temporal_enc(self.drop(x))
         return self.temporal_agg(self.position_embedding(state))
 
-    def forward(self, imgs: torch.Tensor, pv_yield_history, pv_system_id, lead_time: int = 0) -> torch.Tensor:
+    def forward(
+        self, imgs: torch.Tensor, pv_yield_history, pv_system_id, lead_time: int = 0
+    ) -> torch.Tensor:
         """It takes a rank 5 tensor
         - imgs [bs, seq_len, channels, h, w]
         """

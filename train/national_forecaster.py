@@ -1,14 +1,14 @@
-from metnet import MetNet, MetNet2
-from torchinfo import summary
-import torch
-import torch.nn.functional as F
-from ocf_datapipes.training.metnet_national import metnet_national_datapipe
-from torch.utils.data import DataLoader
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 import argparse
 import datetime
+
 import numpy as np
+import pytorch_lightning as pl
+import torch
+from ocf_datapipes.training.metnet_national import metnet_national_datapipe
+from pytorch_lightning.callbacks import ModelCheckpoint
+from torch.utils.data import DataLoader
+
+from metnet import MetNet, MetNet2
 
 
 class LitModel(pl.LightningModule):
@@ -51,14 +51,14 @@ class LitModel(pl.LightningModule):
         x = x.half()
         y = y.half()
         f = np.random.randint(1, skip_num + 1)  # Index 0 is the current generation
-        y_hat = self(x, f-1) # torch.tensor(f-1).long().type_as(x))
+        y_hat = self(x, f - 1)  # torch.tensor(f-1).long().type_as(x))
         loss_fn = torch.nn.MSELoss()
         loss = loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
         total_num = 1
         for i, f in enumerate(
             range(f + 1, 97, skip_num)
         ):  # Can only do 12 hours, so extend out to 48 by doing every 4th one
-            y_hat = self(x, f-1) # torch.tensor(f-1).long().type_as(x))
+            y_hat = self(x, f - 1)  # torch.tensor(f-1).long().type_as(x))
             loss += loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
             total_num += 1
         return loss / total_num
@@ -75,7 +75,7 @@ class LitModel(pl.LightningModule):
         for i, f in enumerate(
             range(f + 1, 97, skip_num)
         ):  # Can only do 12 hours, so extend out to 48 by doing every 4th one
-            y_hat = self(x, torch.tensor(f-1).long().type_as(x))
+            y_hat = self(x, torch.tensor(f - 1).long().type_as(x))
             loss += loss_fn(torch.mean(y_hat, dim=(1, 2, 3)), y[:, f, 0])
             total_num += 1
         return loss / total_num
@@ -116,9 +116,9 @@ if __name__ == "__main__":
         use_sat=args.sat,
         use_hrv=args.hrv,
         use_pv=args.pv,
-        use_topo=args.topo
+        use_topo=args.topo,
     )
-    #val_datapipe = metnet_national_datapipe(
+    # val_datapipe = metnet_national_datapipe(
     #    args.config,
     #    start_time=datetime.datetime(2021, 1, 1),
     #    end_time=datetime.datetime(2022, 12, 31),
@@ -127,13 +127,13 @@ if __name__ == "__main__":
     #    use_sat=args.sat,
     #    use_hrv=args.hrv,
     #    use_pv=args.pv,
-    #)
+    # )
     dataloader = DataLoader(
         dataset=datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
     )
-    #val_dataloader = DataLoader(
+    # val_dataloader = DataLoader(
     #    dataset=val_datapipe, batch_size=args.batch, pin_memory=True, num_workers=args.num_workers
-    #)
+    # )
     # Get the shape of the batch
     batch = next(iter(dataloader))
     input_channels = batch[0].shape[
@@ -144,16 +144,16 @@ if __name__ == "__main__":
     model_checkpoint = ModelCheckpoint(
         every_n_train_steps=100,
         dirpath=f"/mnt/storage_ssd_4tb/metnet_models/metnet{'_2' if args.use_2 else ''}_inchannels{input_channels}"
-                f"_step{args.steps}"
-                f"_size{args.size}"
-                f"_sun{args.sun}"
-                f"_sat{args.sat}"
-                f"_hrv{args.hrv}"
-                f"_nwp{args.nwp}"
-                f"_pv{args.pv}"
-                f"_topo{args.topo}"
-                f"_fp16{args.fp16}"
-                f"_effectiveBatch{args.batch*args.accumulate}",
+        f"_step{args.steps}"
+        f"_size{args.size}"
+        f"_sun{args.sun}"
+        f"_sat{args.sat}"
+        f"_hrv{args.hrv}"
+        f"_nwp{args.nwp}"
+        f"_pv{args.pv}"
+        f"_topo{args.topo}"
+        f"_fp16{args.fp16}"
+        f"_effectiveBatch{args.batch*args.accumulate}",
     )
     # early_stopping = EarlyStopping(monitor="loss")
     trainer = pl.Trainer(
@@ -176,4 +176,4 @@ if __name__ == "__main__":
         center_crop_size=args.center_size,
     )  # , forecast_steps=args.steps*4)
     # trainer.tune(model)
-    trainer.fit(model, train_dataloaders=dataloader) #, val_dataloaders=val_dataloader)
+    trainer.fit(model, train_dataloaders=dataloader)  # , val_dataloaders=val_dataloader)
