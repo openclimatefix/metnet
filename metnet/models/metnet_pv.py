@@ -120,7 +120,6 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         self.fc1 = nn.Linear(in_features=606976, out_features=fc_1_channels)
 
     def encode_timestep(self, x, pv_yield_history, fstep=1):
-
         # Preprocess Tensor
         x = self.preprocessor(x)
 

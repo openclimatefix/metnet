@@ -85,7 +85,6 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
         )  # Reduces to forecast steps
 
     def encode_timestep(self, x):
-
         # Preprocess Tensor
         x = self.preprocessor(x)
 
