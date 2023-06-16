@@ -14,10 +14,11 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         sat_channels: int = 12,
         input_size: int = 256,
         output_channels: int = 12,
-        hidden_dim: int = 64,
+        hidden_dim: int = 2048,
         kernel_size: int = 3,
         num_layers: int = 1,
-        num_att_layers: int = 1,
+        num_att_layers: int = 2,
+        num_att_heads: int = 16,
         forecast_steps: int = 48,
         temporal_dropout: float = 0.2,
         use_preprocessor: bool = True,
@@ -40,6 +41,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         num_att_layers = self.config["num_att_layers"]
         output_channels = self.config["output_channels"]
         use_preprocessor = self.config["use_preprocessor"]
+        num_att_heads = self.config["num_att_heads"]
 
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
@@ -74,7 +76,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         )
         self.temporal_agg = nn.Sequential(
             *[
-                AxialAttention(dim=hidden_dim, dim_index=1, heads=8, num_dimensions=2)
+                AxialAttention(dim=hidden_dim, dim_index=1, heads=num_att_heads, num_dimensions=2)
                 for _ in range(num_att_layers)
             ]
         )
