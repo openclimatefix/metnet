@@ -14,7 +14,7 @@ class MetNet3(torch.nn.Module, PyTorchModelHubMixin):
     """MetNet-3 model for weather forecasting"""
     def __init__(self, input_size: int = 624, sparse_input_channels: int = 14, dense_input_channels: int = 643,
                  context_input_channels: int = 17, low_res_output_size=(128, 128), low_res_output_channels=(14, 617),
-                 high_res_output_size=(512,), high_res_output_channels=(1,), center_crop_size: int = 192):
+                 high_res_output_size=(512,), high_res_output_channels=(1,), center_crop_size: int = 192, forecast_steps: int = 720):
         """
         MetNet-3, with defaults matching the paper as close as possible
 
@@ -29,8 +29,9 @@ class MetNet3(torch.nn.Module, PyTorchModelHubMixin):
             high_res_output_channels: List of number of channels for each of the high-resolution outputs
             center_crop_size: Center crop size of first center crop in pixel space. Second central crop will be half this
                 size
+            forecast_steps: Number of forecast steps to predict
         """
         super().__init__()
 
-    def forward(self, sparse_input: torch.Tensor, dense_input: torch.Tensor, context_input: torch.Tensor) -> torch.Tensor:
+    def forward(self, sparse_input: torch.Tensor, dense_input: torch.Tensor, context_input: torch.Tensor, lead_time: int = 0) -> torch.Tensor:
         return NotImplementedError
