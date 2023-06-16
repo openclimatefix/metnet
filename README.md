@@ -1,4 +1,4 @@
-# MetNet and MetNet-2
+# MetNet, MetNet-2, and MetNet-3
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-6-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
@@ -6,6 +6,8 @@
 PyTorch Implementation of Google Research's MetNet for short term weather forecasting (https://arxiv.org/abs/2003.12140), inspired from https://github.com/tcapelle/metnet_pytorch/tree/master/metnet_pytorch
 
 MetNet-2 (https://arxiv.org/pdf/2111.07470.pdf) is a further extension of MetNet that takes in a larger context image to predict up to 12 hours ahead, and is also implemented in PyTorch here.
+
+MetNet-3 (https://arxiv.org/pdf/2306.06079v2.pdf) builds on MetNet-2 for 24 hour forecasts using both sparse and dense inputs and outputs.
 
 ## Installation
 
