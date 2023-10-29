@@ -22,7 +22,7 @@ class StochasticDepth(nn.Module):
             probability to drop the network path, by default 0.0
         """
         super().__init__()
-        assert 0 < drop_prob < 1.0
+        assert 0 <= drop_prob <= 1.0
         self.drop_prob = drop_prob
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:

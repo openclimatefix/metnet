@@ -56,7 +56,7 @@ class SqueezeExcite(nn.Module):
         torch.Tensor
             Output Tensor
         """
-        x_se = X.mean((2, 3), keepdim=True)
+        x_se = X.mean((2, 3), keepdim=True)  # Mean along H, W dim
         x_se = self.conv_reduce(x_se)
         x_se = self.act1(x_se)
         x_se = self.conv_expand(x_se)
