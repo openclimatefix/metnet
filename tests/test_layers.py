@@ -1,6 +1,8 @@
 from metnet.layers.StochasticDepth import StochasticDepth
 from metnet.layers.SqueezeExcitation import SqueezeExcite
 from metnet.layers.MBConv import MBConv
+from metnet.layers.PartitionAttention import BlockAttention, GridAttention
+from metnet.layers.RelativeSelfAttention import RelativeSelfAttention
 import torch
 
 
@@ -28,3 +30,25 @@ def test_mbconv():
     mb_conv = MBConv(c)
 
     assert test_tensor.shape == mb_conv(test_tensor).shape
+
+
+def test_relative_attention():
+    n, c, h, w = 1, 3, 16, 16
+    test_tensor = torch.rand(n, c, h, w)
+    rel_self_attention = RelativeSelfAttention(c)
+    assert test_tensor.shape == rel_self_attention(test_tensor).shape
+
+
+# def test_block_attention():
+#     n, c, h, w = 1, 3, 16, 16
+#     test_tensor = torch.rand(n, c, h, w)
+#     block_attention = BlockAttention(c)
+
+#     assert test_tensor.shape == block_attention(test_tensor).shape
+
+# def test_grid_attention():
+#     n, c, h, w = 1, 3, 16, 16
+#     test_tensor = torch.rand(n, c, h, w)
+#     grid_attention = GridAttention(c)
+
+#     assert test_tensor.shape == grid_attention(test_tensor).shape

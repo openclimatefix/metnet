@@ -136,12 +136,12 @@ class PartitionAttention(nn.Module):
         Parameters
         ----------
         X : torch.Tensor
-            Input tensor of the shape [B, C_in, H, W].
+            Input tensor of the shape [N, C_in, H, W].
 
         Returns:
         -------
         torch.Tensor
-            Output tensor of the shape [B, C_out, H (// 2), W (// 2)].
+            Output tensor of the shape [N, C_out, H (// 2), W (// 2)].
         """
         # Save original shape
         _, C, H, W = X.shape
@@ -227,31 +227,31 @@ class BlockAttention(PartitionAttention):
         Parameters
         ----------
         input : Tensor
-            input (torch.Tensor): Input tensor of the shape [B, C, H, W].
+            input (torch.Tensor): Input tensor of the shape [N, C, H, W].
 
         Returns:
         -------
         torch.Tensor
             blocks (torch.Tensor): Unfolded input tensor of the shape
-            [B * blocks, partition_size[0], partition_size[1], C].
+            [N * blocks, partition_size[0], partition_size[1], C].
         """
         # Get size of input
-        B, C, H, W = input.shape
+        N, C, H, W = input.shape
         # Unfold input
         blocks = input.view(
-            B,
+            N,
             C,
             H // self.attn_grid_window_size[0],
-            self.partition_window_size[0],
-            W // self.partition_window_size[1],
-            self.partition_window_size[1],
+            self.attn_grid_window_size[0],
+            W // self.attn_grid_window_size[1],
+            self.attn_grid_window_size[1],
         )
         # Permute and reshape to
-        # [B * blocks, self.partition_window_size[0], self.partition_window_size[1], channels]
+        # [N * blocks, self.attn_grid_window_size[0], self.attn_grid_window_size[1], channels]
         blocks = (
             blocks.permute(0, 2, 4, 3, 5, 1)
             .contiguous()
-            .view(-1, self.partition_window_size[0], self.partition_window_size[1], C)
+            .view(-1, self.attn_grid_window_size[0], self.attn_grid_window_size[1], C)
         )
         return blocks
 
@@ -267,7 +267,7 @@ class BlockAttention(PartitionAttention):
         ----------
         partitioned_input : torch.Tensor
             Block tensor of the shape
-            [B * partitioned_input, partition_size[0], partition_size[1], C].
+            [N * partitioned_input, partition_size[0], partition_size[1], C].
         original_size : Tuple[int, int]
             Original shape.
 
@@ -275,25 +275,25 @@ class BlockAttention(PartitionAttention):
         -------
         torch.Tensor
             output (torch.Tensor): Folded output tensor of the shape
-            [B, C, original_size[0], original_size[1]].
+            [N, C, original_size[0], original_size[1]].
         """
         # Get height and width
         H, W = original_size
         # Compute original batch size
-        B = int(
+        N = int(
             partitioned_input.shape[0]
-            / (H * W / self.partition_window_size[0] / self.partition_window_size[1])
+            / (H * W / self.attn_grid_window_size[0] / self.attn_grid_window_size[1])
         )
         # Fold grid tensor
         output = partitioned_input.view(
-            B,
-            H // self.partition_window_size[0],
-            W // self.partition_window_size[1],
-            self.partition_window_size[0],
-            self.partition_window_size[1],
+            N,
+            H // self.attn_grid_window_size[0],
+            W // self.attn_grid_window_size[1],
+            self.attn_grid_window_size[0],
+            self.attn_grid_window_size[1],
             -1,
         )
-        output = output.permute(0, 5, 1, 3, 2, 4).contiguous().view(B, -1, H, W)
+        output = output.permute(0, 5, 1, 3, 2, 4).contiguous().view(N, -1, H, W)
         return output
 
 
@@ -361,30 +361,30 @@ class GridAttention(PartitionAttention):
         Parameters
         ----------
         input : Tensor
-            Input tensor of the shape [B, C, H, W].
+            Input tensor of the shape [N, C, H, W].
 
         Returns:
         -------
         torch.Tensor
             Unfolded input tensor of the shape
-            [B * grids, grid_size[0], grid_size[1], C].
+            [N * grids, grid_size[0], grid_size[1], C].
         """
         # Get size of input
-        B, C, H, W = input.shape
+        N, C, H, W = input.shape
         # Unfold input
         grid = input.view(
-            B,
+            N,
             C,
-            self.partition_window_size[0],
-            H // self.partition_window_size[0],
-            self.partition_window_size[1],
-            W // self.partition_window_size[1],
+            self.attn_grid_window_size[0],
+            H // self.attn_grid_window_size[0],
+            self.attn_grid_window_size[1],
+            W // self.attn_grid_window_size[1],
         )
-        # Permute and reshape [B * (H // self.partition_window_size[0]) * (W // self.partition_window_size[1]), self.partition_window_size[0], window_size[1], C]  # noqa
+        # Permute and reshape [N * (H // self.attn_grid_window_size[0]) * (W // self.attn_grid_window_size[1]), self.attn_grid_window_size[0], window_size[1], C]  # noqa
         grid = (
             grid.permute(0, 3, 5, 2, 4, 1)
             .contiguous()
-            .view(-1, self.partition_window_size[0], self.partition_window_size[1], C)
+            .view(-1, self.attn_grid_window_size[0], self.attn_grid_window_size[1], C)
         )
         return grid
 
@@ -400,30 +400,30 @@ class GridAttention(PartitionAttention):
         ----------
         partitioned_input : torch.Tensor
             Grid tensor of the shape
-            [B * partitioned_input, partition_size[0], partition_size[1], C].
+            [N * partitioned_input, partition_size[0], partition_size[1], C].
         original_size : Tuple[int, int]
             Original shape.
 
         Returns:
         -------
         torch.Tensor
-            Folded output tensor of the shape [B, C, original_size[0], original_size[1]].
+            Folded output tensor of the shape [N, C, original_size[0], original_size[1]].
         """
         # Get height, width, and channels
         (H, W), C = original_size, partitioned_input.shape[-1]
         # Compute original batch size
-        B = int(
+        N = int(
             partitioned_input.shape[0]
-            / (H * W / self.partition_window_size[0] / self.partition_window_size[1])
+            / (H * W / self.attn_grid_window_size[0] / self.attn_grid_window_size[1])
         )
         # Fold partitioned_input tensor
         output = partitioned_input.view(
-            B,
-            H // self.partition_window_size[0],
-            W // self.partition_window_size[1],
+            N,
+            H // self.attn_grid_window_size[0],
+            W // self.attn_grid_window_size[1],
             self.partition_window_size[0],
             self.partition_window_size[1],
             C,
         )
-        output = output.permute(0, 5, 3, 1, 4, 2).contiguous().view(B, C, H, W)
+        output = output.permute(0, 5, 3, 1, 4, 2).contiguous().view(N, C, H, W)
         return output
