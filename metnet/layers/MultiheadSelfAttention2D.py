@@ -107,7 +107,7 @@ class MultiheadSelfAttention2D(nn.Module):
         attention_weights = Q @ K  # Attn shape [N, self.num_heads, H*W, H*W]
 
         if self.rel_attn_bias is not None:
-            self.rel_attn_bias(attention_weights)
+            attention_weights = attention_weights + self.rel_attn_bias()
 
         attention_weights = attention_weights.softmax(
             dim=-1

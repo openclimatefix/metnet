@@ -74,7 +74,7 @@ class PartitionAttention(nn.Module):
         # Save parameters
         self.attn_grid_window_size: Tuple[int, int] = attn_grid_window_size
 
-        RelativePositionBias(attn_size=attn_grid_window_size, num_heads=num_heads)
+        rel_attn_bias = RelativePositionBias(attn_size=attn_grid_window_size, num_heads=num_heads)
         # Init layers
         self.attention = MultiheadSelfAttention2D(
             in_channels=in_channels,
@@ -83,7 +83,7 @@ class PartitionAttention(nn.Module):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             use_normalised_qk=use_normalised_qk,
-            rel_attn_bias=None,
+            rel_attn_bias=rel_attn_bias,
         )
         self.pre_norm_layer = pre_norm_layer(attn_grid_window_size)  # Norm along windows
         self.post_norm_layer = post_norm_layer(attn_grid_window_size)
