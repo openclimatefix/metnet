@@ -45,6 +45,9 @@ class PartitionAttention(nn.Module):
             Number of input channels.
         num_heads : int, optional
              Number of attention heads, by default 32
+        attention_channels : int
+            Number of channels used for attention computations.
+            It should be divisible by num_heads, by default 64
         attn_grid_window_size : Tuple[int, int], optional
              Grid/Window size to be utilized, by default (8, 8)
         attn_drop : float, optional
@@ -194,6 +197,9 @@ class BlockAttention(PartitionAttention):
             Number of input channels.
         num_heads : int, optional
              Number of attention heads, by default 32
+        attention_channels : int
+            Number of channels used for attention computations.
+            It should be divisible by num_heads, by default 64
         attn_grid_window_size : Tuple[int, int], optional
              Grid/Window size for attention, by default (8, 8)
         attn_drop : float, optional
@@ -330,6 +336,9 @@ class GridAttention(PartitionAttention):
             Number of input channels.
         num_heads : int, optional
              Number of attention heads, by default 32
+        attention_channels : int
+            Number of channels used for attention computations.
+            It should be divisible by num_heads, by default 64
         attn_grid_window_size : Tuple[int, int], optional
              Grid/Window size to be utilized, by default (8, 8)
         attn_drop : float, optional
