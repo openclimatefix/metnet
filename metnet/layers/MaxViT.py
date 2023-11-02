@@ -49,7 +49,7 @@ class MaxViTDataClass:
         BlockAttention: Pre norm layer, by default nn.LayerNorm
     block_attention_post_norm_layer : Type[nn.Module], optional
         BlockAttention: Post norm layer, by default nn.LayerNorm
-    block_attention_mlp : Type[nn.Module], optional
+    block_attention_use_mlp : Type[nn.Module], optional
         BlockAttention: MLP to be used after the attention, by default None
     block_attention_use_normalised_qk : bool, optional
         BlockAttention: Normalise queries and keys as done in Metnet 3, by default True
@@ -70,7 +70,7 @@ class MaxViTDataClass:
         GridAttention: Pre norm layer, by default nn.LayerNorm
     grid_attention_post_norm_layer : Type[nn.Module], optional
         GridAttention: Post norm layer, by default nn.LayerNorm
-    grid_attention_mlp : Type[nn.Module], optional
+    grid_attention_use_mlp : Type[nn.Module], optional
         GridAttention: MLP to be used after the attention, by default None
     grid_attention_use_normalised_qk : bool, optional
         GridAttention: Normalise queries and keys as done in Metnet 3, by default True
@@ -91,7 +91,7 @@ class MaxViTDataClass:
     block_attention_drop_path: float = 0
     block_attention_pre_norm_layer: Type[nn.Module] = nn.LayerNorm
     block_attention_post_norm_layer: Type[nn.Module] = nn.LayerNorm
-    block_attention_mlp: Type[nn.Module] = None
+    block_attention_use_mlp: Type[nn.Module] = None
     block_attention_use_normalised_qk: bool = True
     grid_attention_num_heads: int = 32
     grid_attention_channels: int = 64
@@ -101,7 +101,7 @@ class MaxViTDataClass:
     grid_attention_drop_path: float = 0
     grid_attention_pre_norm_layer: Type[nn.Module] = nn.LayerNorm
     grid_attention_post_norm_layer: Type[nn.Module] = nn.LayerNorm
-    grid_attention_mlp: Type[nn.Module] = None
+    grid_attention_use_mlp: Type[nn.Module] = None
     grid_attention_use_normalised_qk: bool = True
 
 
@@ -148,7 +148,7 @@ class MaxViTBlock(nn.Module):
             drop_path=self.config.block_attention_drop_path,
             pre_norm_layer=self.config.block_attention_pre_norm_layer,
             post_norm_layer=self.config.block_attention_post_norm_layer,
-            mlp=self.config.block_attention_mlp,
+            use_mlp=self.config.block_attention_use_mlp,
             use_normalised_qk=self.config.block_attention_use_normalised_qk,
         )
 
@@ -162,7 +162,7 @@ class MaxViTBlock(nn.Module):
             drop_path=self.config.grid_attention_drop_path,
             pre_norm_layer=self.config.grid_attention_pre_norm_layer,
             post_norm_layer=self.config.grid_attention_post_norm_layer,
-            mlp=self.config.grid_attention_mlp,
+            use_mlp=self.config.grid_attention_use_mlp,
             use_normalised_qk=self.config.grid_attention_use_normalised_qk,
         )
 

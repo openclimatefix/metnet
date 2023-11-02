@@ -11,6 +11,55 @@ from metnet.layers.RelativePositionBias import RelativePositionBias
 from metnet.layers.StochasticDepth import StochasticDepth
 
 
+class PointwiseMLP(nn.Module):
+    """
+    Pointwise MLP for [N, C, H, W] images
+    """
+
+    def __init__(self, in_channels: int, out_channels: int = None, hidden_dim: int = None) -> None:
+        """
+        Constructor Method
+
+        Parameters
+        ----------
+        in_channels : int
+            Input Channels
+        out_channels : int, optional
+            Output Channels, by default None
+            If None, set equal to in_channels
+        hidden_dim : int, optional
+            Hidden Dim for MLP, by default None
+            If None, set equal to 4 * in_channels
+        """
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels if out_channels else in_channels
+        self.hidden_dim = hidden_dim if hidden_dim else 4 * self.in_channels
+
+        self.mlp = nn.Sequential(
+            nn.Linear(self.in_channels, self.hidden_dim),
+            nn.GELU(),
+            nn.Linear(self.hidden_dim, self.out_channels),
+        )
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """
+        Forward Method
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Input Tensor
+
+        Returns:
+        -------
+        torch.Tensor
+            Output Tensor
+        """
+        X = X.permute(0, 2, 3, 1)  # Converting from [N, C, H, W] to [N, W, C, W]
+        return self.mlp(X)
+
+
 class PartitionAttention(nn.Module):
     """
     Partition Attention
@@ -33,7 +82,7 @@ class PartitionAttention(nn.Module):
         drop_path: float = 0.0,
         pre_norm_layer: Type[nn.Module] = nn.LayerNorm,
         post_norm_layer: Type[nn.Module] = nn.LayerNorm,
-        mlp: Type[nn.Module] = None,
+        use_mlp: bool = False,
         use_normalised_qk: bool = True,
     ) -> None:
         """
@@ -60,15 +109,14 @@ class PartitionAttention(nn.Module):
             Pre norm layer, by default nn.LayerNorm
         post_norm_layer : Type[nn.Module], optional
             Post norm layer, by default nn.LayerNorm
-        mlp : Type[nn.Module], optional
-            MLP to be used after the attention, by default None
+        use_mlp : bool, optional
+            MLP to be used after the attention, by default False
         use_normalised_qk : bool, optional
             Normalise queries and keys as done in Metnet 3, by default True.
 
         Notes:
         -----
         Specific to Metnet 3 implementation
-        TODO: Add the MLP as an optional parameter.
         """
         super().__init__()
         # Save parameters
@@ -88,9 +136,8 @@ class PartitionAttention(nn.Module):
         self.pre_norm_layer = pre_norm_layer(attn_grid_window_size)  # Norm along windows
         self.post_norm_layer = post_norm_layer(attn_grid_window_size)
 
-        if mlp:
-            # TODO: allow for an mlp to be passed here
-            raise NotImplementedError("Metnet 3 does noes use MLPs in MaxVit.")
+        if use_mlp:
+            self.mlp = PointwiseMLP(in_channels=in_channels)
         else:
             self.mlp = nn.Identity()
         self.drop_path = StochasticDepth(drop_path) if drop_path > 0.0 else nn.Identity()
@@ -144,12 +191,12 @@ class PartitionAttention(nn.Module):
         Parameters
         ----------
         X : torch.Tensor
-            Input tensor of the shape [N, C_in, H, W].
+            Input tensor of the shape [N, C, H, W].
 
         Returns:
         -------
         torch.Tensor
-            Output tensor of the shape [N, C_out, H (// 2), W (// 2)].
+            Output tensor of the shape [N, C, H, W].
         """
         # Save original shape
         _, C, H, W = X.shape
@@ -185,7 +232,7 @@ class BlockAttention(PartitionAttention):
         drop_path: float = 0.0,
         pre_norm_layer: Type[nn.Module] = nn.LayerNorm,
         post_norm_layer: Type[nn.Module] = nn.LayerNorm,
-        mlp: Type[nn.Module] = None,
+        use_mlp: bool = False,
         use_normalised_qk: bool = True,
     ) -> None:
         """
@@ -212,8 +259,8 @@ class BlockAttention(PartitionAttention):
             Pre norm layer, by default nn.LayerNorm
         post_norm_layer : Type[nn.Module], optional
             Post norm layer, by default nn.LayerNorm
-        mlp : Type[nn.Module], optional
-            MLP to be used after the attention, by default None
+        use_mlp : bool, optional
+            MLP to be used after the attention, by default False
         use_normalised_qk : bool, optional
             Normalise queries and keys as done in Metnet 3, by default True.
         """
@@ -227,7 +274,7 @@ class BlockAttention(PartitionAttention):
             drop_path,
             pre_norm_layer,
             post_norm_layer,
-            mlp,
+            use_mlp,
             use_normalised_qk,
         )
 
@@ -324,7 +371,7 @@ class GridAttention(PartitionAttention):
         drop_path: float = 0.0,
         pre_norm_layer: Type[nn.Module] = nn.LayerNorm,
         post_norm_layer: Type[nn.Module] = nn.LayerNorm,
-        mlp: Type[nn.Module] = None,
+        use_mlp: bool = False,
         use_normalised_qk: bool = True,
     ) -> None:
         """
@@ -351,8 +398,8 @@ class GridAttention(PartitionAttention):
             Pre norm layer, by default nn.LayerNorm
         post_norm_layer : Type[nn.Module], optional
             Post norm layer, by default nn.LayerNorm
-        mlp : Type[nn.Module], optional
-            MLP to be used after the attention, by default None
+        use_mlp : bool, optional
+            MLP to be used after the attention, by default False
         use_normalised_qk : bool, optional
             Normalise queries and keys as done in Metnet 3, by default True.
         """
@@ -366,7 +413,7 @@ class GridAttention(PartitionAttention):
             drop_path,
             pre_norm_layer,
             post_norm_layer,
-            mlp,
+            use_mlp,
             use_normalised_qk,
         )
 
