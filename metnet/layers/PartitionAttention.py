@@ -6,7 +6,8 @@ from typing import Tuple, Type
 import torch
 from torch import Tensor, nn
 
-from metnet.layers.RelativeSelfAttention import RelativeSelfAttention
+from metnet.layers.MultiheadSelfAttention2D import MultiheadSelfAttention2D
+from metnet.layers.RelativePositionBias import RelativePositionBias
 from metnet.layers.StochasticDepth import StochasticDepth
 
 
@@ -25,6 +26,7 @@ class PartitionAttention(nn.Module):
         self,
         in_channels: int,
         num_heads: int = 32,
+        attention_channels: int = 64,
         attn_grid_window_size: Tuple[int, int] = (8, 8),
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
@@ -68,17 +70,20 @@ class PartitionAttention(nn.Module):
         super().__init__()
         # Save parameters
         self.attn_grid_window_size: Tuple[int, int] = attn_grid_window_size
+
+        RelativePositionBias(attn_size=attn_grid_window_size, num_heads=num_heads)
         # Init layers
-        self.attention = RelativeSelfAttention(
+        self.attention = MultiheadSelfAttention2D(
             in_channels=in_channels,
+            attention_channels=attention_channels,
             num_heads=num_heads,
-            attn_grid_window_size=attn_grid_window_size,
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             use_normalised_qk=use_normalised_qk,
+            rel_attn_bias=None,
         )
-        self.pre_norm_layer = pre_norm_layer(in_channels)
-        self.post_norm_layer = post_norm_layer(in_channels)
+        self.pre_norm_layer = pre_norm_layer(attn_grid_window_size)  # Norm along windows
+        self.post_norm_layer = post_norm_layer(attn_grid_window_size)
 
         if mlp:
             # TODO: allow for an mlp to be passed here
@@ -147,9 +152,7 @@ class PartitionAttention(nn.Module):
         _, C, H, W = X.shape
         # Perform partition
         input_partitioned = self.partition_function(X)
-        input_partitioned = input_partitioned.view(
-            -1, self.attn_grid_window_size[0] * self.attn_grid_window_size[1], C
-        )
+
         # Perform normalization, attention, and dropout
         output = input_partitioned + self.drop_path(
             self.attention(self.pre_norm_layer(input_partitioned))
@@ -172,6 +175,7 @@ class BlockAttention(PartitionAttention):
         self,
         in_channels: int,
         num_heads: int = 32,
+        attention_channels: int = 64,
         attn_grid_window_size: Tuple[int, int] = (8, 8),
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
@@ -210,6 +214,7 @@ class BlockAttention(PartitionAttention):
         super().__init__(
             in_channels,
             num_heads,
+            attention_channels,
             attn_grid_window_size,
             attn_drop,
             proj_drop,
@@ -247,11 +252,11 @@ class BlockAttention(PartitionAttention):
             self.attn_grid_window_size[1],
         )
         # Permute and reshape to
-        # [N * blocks, self.attn_grid_window_size[0], self.attn_grid_window_size[1], channels]
+        # [N * blocks, channels, self.attn_grid_window_size[0], self.attn_grid_window_size[1]]
         blocks = (
             blocks.permute(0, 2, 4, 3, 5, 1)
             .contiguous()
-            .view(-1, self.attn_grid_window_size[0], self.attn_grid_window_size[1], C)
+            .view(-1, C, self.attn_grid_window_size[0], self.attn_grid_window_size[1])
         )
         return blocks
 
@@ -267,7 +272,7 @@ class BlockAttention(PartitionAttention):
         ----------
         partitioned_input : torch.Tensor
             Block tensor of the shape
-            [N * partitioned_input, partition_size[0], partition_size[1], C].
+            [N * partitioned_input, C, partition_size[0], partition_size[1]].
         original_size : Tuple[int, int]
             Original shape.
 
@@ -285,15 +290,15 @@ class BlockAttention(PartitionAttention):
             / (H * W / self.attn_grid_window_size[0] / self.attn_grid_window_size[1])
         )
         # Fold grid tensor
-        output = partitioned_input.view(
+        output = partitioned_input.view(  # TODO: Verify
             N,
+            -1,
             H // self.attn_grid_window_size[0],
             W // self.attn_grid_window_size[1],
             self.attn_grid_window_size[0],
             self.attn_grid_window_size[1],
-            -1,
         )
-        output = output.permute(0, 5, 1, 3, 2, 4).contiguous().view(N, -1, H, W)
+        output = output.contiguous().view(N, -1, H, W)
         return output
 
 
@@ -306,6 +311,7 @@ class GridAttention(PartitionAttention):
         self,
         in_channels: int,
         num_heads: int = 32,
+        attention_channels: int = 64,
         attn_grid_window_size: Tuple[int, int] = (8, 8),
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
@@ -344,6 +350,7 @@ class GridAttention(PartitionAttention):
         super().__init__(
             in_channels,
             num_heads,
+            attention_channels,
             attn_grid_window_size,
             attn_drop,
             proj_drop,
@@ -380,11 +387,11 @@ class GridAttention(PartitionAttention):
             self.attn_grid_window_size[1],
             W // self.attn_grid_window_size[1],
         )
-        # Permute and reshape [N * (H // self.attn_grid_window_size[0]) * (W // self.attn_grid_window_size[1]), self.attn_grid_window_size[0], window_size[1], C]  # noqa
+        # Permute and reshape [N * (H // self.attn_grid_window_size[0]) * (W // self.attn_grid_window_size[1]), C, self.attn_grid_window_size[0], self.attn_grid_window_size[1]]  # noqa
         grid = (
-            grid.permute(0, 3, 5, 2, 4, 1)
+            grid.permute(0, 3, 5, 1, 2, 4)
             .contiguous()
-            .view(-1, self.attn_grid_window_size[0], self.attn_grid_window_size[1], C)
+            .view(-1, C, self.attn_grid_window_size[0], self.attn_grid_window_size[1])
         )
         return grid
 
@@ -400,7 +407,7 @@ class GridAttention(PartitionAttention):
         ----------
         partitioned_input : torch.Tensor
             Grid tensor of the shape
-            [N * partitioned_input, partition_size[0], partition_size[1], C].
+            [N * partitioned_input, C, partition_size[0], partition_size[1]].
         original_size : Tuple[int, int]
             Original shape.
 
@@ -410,20 +417,20 @@ class GridAttention(PartitionAttention):
             Folded output tensor of the shape [N, C, original_size[0], original_size[1]].
         """
         # Get height, width, and channels
-        (H, W), C = original_size, partitioned_input.shape[-1]
+        (H, W), C = original_size, partitioned_input.shape[1]
         # Compute original batch size
         N = int(
             partitioned_input.shape[0]
             / (H * W / self.attn_grid_window_size[0] / self.attn_grid_window_size[1])
         )
         # Fold partitioned_input tensor
-        output = partitioned_input.view(
+        output = partitioned_input.view(  # TODO: Verify
             N,
+            C,
             H // self.attn_grid_window_size[0],
             W // self.attn_grid_window_size[1],
-            self.partition_window_size[0],
-            self.partition_window_size[1],
-            C,
+            self.attn_grid_window_size[0],
+            self.attn_grid_window_size[1],
         )
-        output = output.permute(0, 5, 3, 1, 4, 2).contiguous().view(N, C, H, W)
+        output = output.permute(0, 1, 3, 5, 4, 2).contiguous().view(N, C, H, W)
         return output
