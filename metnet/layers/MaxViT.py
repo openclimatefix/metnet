@@ -185,7 +185,6 @@ class MaxViTBlock(nn.Module):
         output = self.block_attention(output)
         output = self.grid_attention(output)
 
-        # output = self.grid_attention(self.block_attention(self.mb_conv(X)))
         return output
 
 
