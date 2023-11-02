@@ -24,6 +24,8 @@ class MaxViTDataClass:
         MBConv: Flag to denote downscaling in the conv branch, by default False
     mb_conv_act_layer : Type[nn.Module], optional
         MBConv: activation layer, by default nn.GELU
+    mb_conv_norm_layer : Type[nn.Module], optional
+        MBConv: norm layer, by default nn.BatchNorm2D
     mb_conv_drop_path : float, optional
         MBConv: Stochastic Depth ratio, by default 0.0
     mb_conv_kernel_size : int, optional
@@ -32,6 +34,9 @@ class MaxViTDataClass:
         MBConv: Squeeze Excite reduction ratio, by default 0.25
     block_attention_num_heads : int, optional
         BlockAttention: Number of attention heads, by default 32
+    block_attention_channels : int
+        BlockAttention: Number of channels used for attention computations.
+        It should be divisible by num_heads, by default 64
     block_attention_attn_grid_window_size : Tuple[int, int], optional
         BlockAttention: Grid/Window size for attention, by default (8, 8)
     block_attention_attn_drop : float, optional
@@ -50,6 +55,9 @@ class MaxViTDataClass:
         BlockAttention: Normalise queries and keys as done in Metnet 3, by default True
     grid_attention_num_heads : int, optional
         GridAttention: Number of attention heads, by default 32
+    grid_attention_channels : int
+        GridAttention: Number of channels used for attention computations.
+        It should be divisible by num_heads, by default 64
     grid_attention_attn_grid_window_size : Tuple[int, int], optional
         GridAttention: Grid/Window size for attention, by default (8, 8)
     grid_attention_attn_drop : float, optional
@@ -71,10 +79,12 @@ class MaxViTDataClass:
     mb_conv_expansion_rate: int = 4
     mb_conv_downscale: bool = False
     mb_conv_act_layer: Type[nn.Module] = nn.GELU
+    mb_conv_norm_layer: Type[nn.Module] = nn.BatchNorm2d
     mb_conv_drop_path: float = 0.0
     mb_conv_kernel_size: int = 3
     mb_conv_se_bottleneck_ratio: float = 0.25
     block_attention_num_heads: int = 32
+    block_attention_channels: int = 64
     block_attention_attn_grid_window_size: Tuple[int, int] = (8, 8)
     block_attention_attn_drop: float = 0
     block_attention_proj_drop: float = 0
@@ -84,6 +94,7 @@ class MaxViTDataClass:
     block_attention_mlp: Type[nn.Module] = None
     block_attention_use_normalised_qk: bool = True
     grid_attention_num_heads: int = 32
+    grid_attention_channels: int = 64
     grid_attention_attn_grid_window_size: Tuple[int, int] = (8, 8)
     grid_attention_attn_drop: float = 0
     grid_attention_proj_drop: float = 0
@@ -111,13 +122,15 @@ class MaxViTBlock(nn.Module):
             MaxVit Config
         """
         super().__init__()
+        self.in_channels = in_channels
         self.config = maxvit_config
-        mb_conv_out_channels = in_channels * self.config.mb_conv_expansion_rate
+
         self.mb_conv = MBConv(
-            in_channels=self.config.in_channels,
+            in_channels=self.in_channels,
             expansion_rate=self.config.mb_conv_expansion_rate,
             downscale=self.config.mb_conv_downscale,
             act_layer=self.config.mb_conv_act_layer,
+            norm_layer=self.config.mb_conv_norm_layer,
             drop_path=self.config.mb_conv_drop_path,
             kernel_size=self.config.mb_conv_kernel_size,
             se_bottleneck_ratio=self.config.mb_conv_se_bottleneck_ratio,
@@ -126,8 +139,9 @@ class MaxViTBlock(nn.Module):
         # Init Block and Grid Attention
 
         self.block_attention = BlockAttention(
-            in_channels=mb_conv_out_channels,
+            in_channels=self.in_channels,
             num_heads=self.config.block_attention_num_heads,
+            attention_channels=self.config.block_attention_channels,
             attn_grid_window_size=self.config.block_attention_attn_grid_window_size,
             attn_drop=self.config.block_attention_attn_drop,
             proj_drop=self.config.block_attention_proj_drop,
@@ -139,8 +153,9 @@ class MaxViTBlock(nn.Module):
         )
 
         self.grid_attention = GridAttention(
-            in_channels=mb_conv_out_channels,
+            in_channels=self.in_channels,
             num_heads=self.config.grid_attention_num_heads,
+            attention_channels=self.config.grid_attention_channels,
             attn_grid_window_size=self.config.grid_attention_attn_grid_window_size,
             attn_drop=self.config.grid_attention_attn_drop,
             proj_drop=self.config.grid_attention_proj_drop,
@@ -158,14 +173,19 @@ class MaxViTBlock(nn.Module):
         Parameters
         ----------
         X : torch.Tensor
-            Input tensor of the shape [B, C_in, H, W]
+            Input tensor of the shape [N, C, H, W]
 
         Returns:
         -------
         torch.Tensor
-            Output tensor of the shape [B, C_out, H // 2, W // 2] (downscaling is optional)
+            MaxViT block output tensor of the shape [N, C, H, W]
         """
-        output = self.grid_attention(self.block_attention(self.mb_conv(X)))
+
+        output = self.mb_conv(X)
+        output = self.block_attention(output)
+        output = self.grid_attention(output)
+
+        # output = self.grid_attention(self.block_attention(self.mb_conv(X)))
         return output
 
 

@@ -1,3 +1,4 @@
+from metnet.layers.MaxViT import MaxViTBlock, MaxViTDataClass
 from metnet.layers.StochasticDepth import StochasticDepth
 from metnet.layers.SqueezeExcitation import SqueezeExcite
 from metnet.layers.MBConv import MBConv
@@ -53,3 +54,11 @@ def test_grid_attention():
     grid_attention = GridAttention(c)
 
     assert test_tensor.shape == grid_attention(test_tensor).shape
+
+
+def test_maxvitblock():
+    n, c, h, w = 1, 3, 16, 16
+    test_tensor = torch.rand(n, c, h, w)
+
+    maxvit_block = MaxViTBlock(in_channels=c, maxvit_config=MaxViTDataClass())
+    assert test_tensor.shape == maxvit_block(test_tensor).shape

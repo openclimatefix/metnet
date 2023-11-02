@@ -70,13 +70,13 @@ class MultiheadSelfAttention2D(nn.Module):
         self.attn_drop = nn.Dropout(p=attn_drop)
         self.proj_drop = nn.Dropout(p=proj_drop)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
         """
         Forward pass for the multi-head self-attention mechanism.
 
         Parameters
         ----------
-        x : torch.Tensor
+        X : torch.Tensor
             Input tensor of shape (N, C, H, W).
 
         Returns:
@@ -85,12 +85,11 @@ class MultiheadSelfAttention2D(nn.Module):
             Output tensor after multi-head self-attention of shape (N, C, H, W).
         """
 
-        N, C, H, W = x.size()
-
+        N, C, H, W = X.size()
         # Compute Q, K, V
-        Q = self.query(x)
-        K = self.key(x)
-        V = self.value(x)
+        Q = self.query(X)
+        K = self.key(X)
+        V = self.value(X)
 
         Q = Q.view(N, self.num_heads, self.attention_head_size, H * W)
         K = K.view(N, self.num_heads, self.attention_head_size, H * W)
@@ -130,4 +129,4 @@ class MultiheadSelfAttention2D(nn.Module):
         # Out shape [N, attention_channels, H, W]
         out = self.out_proj(out)  # Out shape [N, C, H, W]
         out = self.proj_drop(out)
-        return out + x
+        return out + X
