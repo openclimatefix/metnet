@@ -15,8 +15,8 @@ class MultiheadSelfAttention2D(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        attention_channels: int,
-        num_heads: int,
+        attention_channels: int = 64,
+        num_heads: int = 16,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         use_normalised_qk: bool = True,
@@ -31,9 +31,9 @@ class MultiheadSelfAttention2D(nn.Module):
             Number of channels in the input image.
         attention_channels : int
             Number of channels used for attention computations.
-            It should be divisible by num_heads.
+            It should be divisible by num_heads, by default 64
         num_heads : int
-            Number of attention heads.
+            Number of attention heads, by default 16
         attn_drop : float, optional
             attention dropout rate, by default 0.0
         proj_drop : float, optional
