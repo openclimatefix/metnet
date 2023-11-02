@@ -196,7 +196,7 @@ class MetNetMaxVit(nn.Module):
     def __init__(
         self,
         in_channels: int = 512,
-        out_channels: int = 512,
+        out_channels: int = None,
         num_blocks: int = 12,
         maxvit_conf: Union[Type[MaxViTDataClass], List[Type[MaxViTDataClass]]] = MaxViTDataClass(),
         set_linear_stocastic_depth: bool = True,
@@ -209,7 +209,7 @@ class MetNetMaxVit(nn.Module):
         in_channels : int, optional
             Input Channels, by default 512
         out_channels : int, optional
-            Output Channels, by default 512
+            Output Channels, by default None
         num_blocks : int, optional
             Number of MaxViT blocks, by default 12
         maxvit_conf : Union[ Type[MaxViTDataClass], List[Type[MaxViTDataClass]] ], optional
@@ -219,6 +219,8 @@ class MetNetMaxVit(nn.Module):
         """
         super().__init__()
         self.in_channels = in_channels
+        self.out_channels = out_channels if out_channels else in_channels
+
         self.num_blocks = num_blocks
         self.set_linear_stocastic_depth = set_linear_stocastic_depth
 
@@ -242,9 +244,9 @@ class MetNetMaxVit(nn.Module):
         for conf in self.maxvit_conf_list:
             self.maxvit_blocks.append(MaxViTBlock(in_channels=self.in_channels, maxvit_config=conf))
 
-        self.linear_transform = nn.Linear(
-            in_features=out_channels, out_features=in_channels
-        )  # TODO:Test the shapes
+        self.linear_transform = nn.Conv2d(
+            in_channels=self.in_channels, out_channels=self.in_channels, kernel_size=1
+        )
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """
@@ -265,6 +267,7 @@ class MetNetMaxVit(nn.Module):
         for i in range(1, self.num_blocks):
             model_output_list.append(self.maxvit_blocks[i](model_output_list[i - 1]))
 
-        output = X + torch.stack(model_output_list).sum(dim=0)  # TODO: verify dim
+        output = X + torch.stack(model_output_list).sum(dim=0)
+
         output = self.linear_transform(output)
         return output

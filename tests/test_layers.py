@@ -1,4 +1,4 @@
-from metnet.layers.MaxViT import MaxViTBlock, MaxViTDataClass
+from metnet.layers.MaxViT import MaxViTBlock, MaxViTDataClass, MetNetMaxVit
 from metnet.layers.StochasticDepth import StochasticDepth
 from metnet.layers.SqueezeExcitation import SqueezeExcite
 from metnet.layers.MBConv import MBConv
@@ -62,3 +62,11 @@ def test_maxvitblock():
 
     maxvit_block = MaxViTBlock(in_channels=c, maxvit_config=MaxViTDataClass())
     assert test_tensor.shape == maxvit_block(test_tensor).shape
+
+
+def test_metnet_maxvit():
+    n, c, h, w = 1, 3, 16, 16
+    test_tensor = torch.rand(n, c, h, w)
+
+    metnet_maxvit = MetNetMaxVit(in_channels=c)
+    assert test_tensor.shape == metnet_maxvit(test_tensor).shape
