@@ -41,7 +41,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         num_att_layers = self.config["num_att_layers"]
         output_channels = self.config["output_channels"]
         use_preprocessor = self.config["use_preprocessor"]
-        num_att_heads = self.config["num_att_heads"]
+        num_att_heads = self.config.get("num_att_heads", 16)
 
         self.forecast_steps = forecast_steps
         self.input_channels = input_channels
