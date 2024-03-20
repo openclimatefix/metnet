@@ -53,7 +53,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         pv_fc_out_channels = self.config["pv_fc_out_channels"]
         pv_id_embedding_channels = self.config["pv_id_embedding_channels"]
         fc_1_channels = self.config["fc_1_channels"]
-        num_att_heads = self.config["num_att_heads"]
+        num_att_heads = self.config.get("num_att_heads", 16)
         avg_pool_size = self.config["avg_pool_size"]
 
         self.forecast_steps = forecast_steps
@@ -116,8 +116,18 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
             + pv_id_embedding_channels * num_pv_systems
         )
 
+        
         # FC layer, takes in 'econcded_timesteps', pv history, and embedding of pv ids
-        self.fc1 = nn.Linear(in_features=606976, out_features=fc_1_channels)
+        # self.fc1 = nn.Linear(in_features=606976, out_features=fc_1_channels)
+
+        # Calculating the number of features after average pooling and reshape
+        num_features_after_pooling = (input_size // 4 // avg_pool_size) ** 2 * hidden_dim
+
+        # Calculating the total number of features for the linear layer input
+        total_features = num_features_after_pooling + (n_pv_timestamps * pv_fc_out_channels) + (pv_id_embedding_channels * num_pv_systems)
+
+        # Updating the in_features parameter of nn.Linear
+        self.fc1 = nn.Linear(in_features=total_features, out_features=fc_1_channels)
 
     def encode_timestep(self, x, pv_yield_history, fstep=1):
         # Preprocess Tensor
