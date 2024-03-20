@@ -58,6 +58,15 @@
       "contributions": [
         "question"
       ]
+    },
+    {
+      "login": "rahul-maurya11b",
+      "name": "Rahul Maurya",
+      "avatar_url": "https://avatars.githubusercontent.com/u/98907006?v=4",
+      "profile": "https://github.com/rahul-maurya11b",
+      "contributions": [
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
@@ -66,5 +75,6 @@
   "repoType": "github",
   "repoHost": "https://github.com",
   "skipCi": true,
-  "commitConvention": "angular"
+  "commitConvention": "angular",
+  "commitType": "docs"
 }
