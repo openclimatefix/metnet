@@ -116,7 +116,6 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
             + pv_id_embedding_channels * num_pv_systems
         )
 
-        
         # FC layer, takes in 'econcded_timesteps', pv history, and embedding of pv ids
         # self.fc1 = nn.Linear(in_features=606976, out_features=fc_1_channels)
 
@@ -124,7 +123,11 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         num_features_after_pooling = (input_size // 4 // avg_pool_size) ** 2 * hidden_dim
 
         # Calculating the total number of features for the linear layer input
-        total_features = num_features_after_pooling + (n_pv_timestamps * pv_fc_out_channels) + (pv_id_embedding_channels * num_pv_systems)
+        total_features = (
+            num_features_after_pooling
+            + (n_pv_timestamps * pv_fc_out_channels)
+            + (pv_id_embedding_channels * num_pv_systems)
+        )
 
         # Updating the in_features parameter of nn.Linear
         self.fc1 = nn.Linear(in_features=total_features, out_features=fc_1_channels)
