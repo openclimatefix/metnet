@@ -3,7 +3,7 @@ from torch import nn as nn
 
 
 def condition_time(x, i=0, size=(12, 16), seq_len=15):
-    "Create one hot encoded time image-layers, i in [1, seq_len]"
+    """Create one hot encoded time image-layers, i in [1, seq_len]"""
     assert i < seq_len
     times = (torch.eye(seq_len, dtype=torch.long, device=x.device)[i]).unsqueeze(-1).unsqueeze(-1)
     ones = torch.ones(1, *size, dtype=x.dtype, device=x.device)
@@ -11,7 +11,7 @@ def condition_time(x, i=0, size=(12, 16), seq_len=15):
 
 
 class ConditionTime(nn.Module):
-    "Condition Time on a stack of images, adds `horizon` channels to image"
+    """Condition Time on a stack of images, adds `horizon` channels to image"""
 
     def __init__(self, horizon, ch_dim=2, num_dims=5):
         super().__init__()
@@ -20,7 +20,7 @@ class ConditionTime(nn.Module):
         self.num_dims = num_dims
 
     def forward(self, x, fstep=0):
-        "X stack of images, fsteps"
+        """X stack of images, fsteps"""
         if self.num_dims == 5:
             bs, seq_len, ch, h, w = x.shape
             ct = condition_time(x, fstep, (h, w), seq_len=self.horizon).repeat(bs, seq_len, 1, 1, 1)

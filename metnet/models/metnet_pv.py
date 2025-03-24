@@ -150,6 +150,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         self, imgs: torch.Tensor, pv_yield_history, pv_system_id, lead_time: int = 0
     ) -> torch.Tensor:
         """It takes a rank 5 tensor
+
         - imgs [bs, seq_len, channels, h, w]
         """
         x_i = self.encode_timestep(imgs, pv_yield_history, lead_time)
@@ -176,16 +177,18 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
 
 class TemporalEncoder(nn.Module):
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
+        """Takes a set of channels and layers"""
         super().__init__()
         self.out_channels = out_channels
         self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
 
     def forward(self, x):
+        """Performs a forward pass on the recurrent neural network"""
         x, h = self.rnn(x)
         return (x, h[-1])
 
 
 def feat2image(x, target_size=(128, 128)):
-    "This idea comes from MetNet"
+    """This idea comes from MetNet"""
     x = x.transpose(1, 2)
     return x.unsqueeze(-1).unsqueeze(-1) * x.new_ones(1, 1, 1, *target_size)

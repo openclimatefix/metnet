@@ -9,12 +9,13 @@ class ConditionWithTimeMetNet2(nn.Module):
 
     def __init__(self, forecast_steps: int, hidden_dim: int, num_feature_maps: int):
         """
-        Compute the scale and bias factors for conditioning convolutional blocks on the forecast time
+        Compute the scale and bias factors for conditioning convolutional blocks on forecast time
 
         Args:
             forecast_steps: Number of forecast steps
             hidden_dim: Hidden dimension size
-            num_feature_maps: Max number of channels in the blocks, to generate enough scale+bias values
+            num_feature_maps: Max number of channels in the blocks, to generate enough
+            scale+bias values
                 This means extra values will be generated, but keeps implementation simpler
         """
         super().__init__()
@@ -31,8 +32,8 @@ class ConditionWithTimeMetNet2(nn.Module):
         """
         Get the scale and bias for the conditioning layers
 
-        From the FiLM paper, each feature map (i.e. channel) has its own scale and bias layer, so needs
-        a scale and bias for each feature map to be generated
+        From the FiLM paper, each feature map (i.e. channel) has its own scale and bias layer,
+        so needs a scale and bias for each feature map to be generated
 
         Args:
             x: The Tensor that is used
