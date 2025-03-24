@@ -14,6 +14,7 @@ class ConditionTime(nn.Module):
     """Condition Time on a stack of images, adds `horizon` channels to image"""
 
     def __init__(self, horizon, ch_dim=2, num_dims=5):
+        """Set the horizontal channels and the dimensions for the channels and numbers"""
         super().__init__()
         self.horizon = horizon
         self.ch_dim = ch_dim

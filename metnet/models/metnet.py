@@ -1,3 +1,4 @@
+"""MetNet model for weather forecasting"""
 import torch
 import torch.nn as nn
 from axial_attention import AxialAttention, AxialPositionalEmbedding
@@ -7,6 +8,8 @@ from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocesso
 
 
 class MetNet(torch.nn.Module, PyTorchModelHubMixin):
+    """MetNet model for weather forecasting"""
+
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -24,6 +27,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         use_preprocessor: bool = True,
         **kwargs,
     ):
+        """Setup the met net model"""
         super(MetNet, self).__init__()
         config = locals()
         config.pop("self")
@@ -109,6 +113,8 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
 
 
 class TemporalEncoder(nn.Module):
+    """encodes temporal features"""
+
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
         """Takes a set of channels and layers"""
         super().__init__()

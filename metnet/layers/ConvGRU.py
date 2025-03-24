@@ -100,17 +100,17 @@ class ConvGRUCell(nn.Module):
 
 
 def one_param(m):
-    "First parameter in `m`"
+    """First parameter in `m`"""
     return next(m.parameters())
 
 
 def dropout_mask(x, sz, p):
-    "Return a dropout mask of the same type as `x`, size `sz`, with probability `p` \to cancel an element."
+    """Return a dropout mask of the same type as `x`, size `sz`, with probability `p` to cancel an element."""
     return x.new_empty(*sz).bernoulli_(1 - p).div_(1 - p)
 
 
 class RNNDropout(nn.Module):
-    "Dropout with probability `p` that is consistent on the seq_len dimension."
+    """Dropout with probability `p` that is consistent on the seq_len dimension."""
 
     def __init__(self, p=0.5):
         super().__init__()
@@ -123,6 +123,8 @@ class RNNDropout(nn.Module):
 
 
 class ConvGRU(nn.Module):
+    """Conv GRU"""
+
     def __init__(
         self,
         input_dim,
@@ -136,6 +138,7 @@ class ConvGRU(nn.Module):
         hidden_p=0.1,
         batchnorm=False,
     ):
+        "Setup the configurations of the conv GRU"
         super(ConvGRU, self).__init__()
 
         self._check_kernel_size_consistency(kernel_size)

@@ -1,3 +1,4 @@
+"""MetNet Photovoltaics model"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +9,8 @@ from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocesso
 
 
 class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
+    """MetNet Photovoltaics model"""
+
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -31,6 +34,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         num_pv_embeddings: int = 30000,
         **kwargs,
     ):
+        """Setup the MetNet Photovoltaics model"""
         super(MetNetPV, self).__init__()
         config = locals()
         config.pop("self")
@@ -133,6 +137,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         self.fc1 = nn.Linear(in_features=total_features, out_features=fc_1_channels)
 
     def encode_timestep(self, x, pv_yield_history, fstep=1):
+        """Encode the passed in input"""
         # Preprocess Tensor
         x = self.preprocessor(x)
 
@@ -176,6 +181,8 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
 
 
 class TemporalEncoder(nn.Module):
+    """encodes temporal features"""
+
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
         """Takes a set of channels and layers"""
         super().__init__()
