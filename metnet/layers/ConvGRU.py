@@ -186,7 +186,7 @@ class ConvGRU(nn.Module):
 
         self.cell_list = nn.ModuleList(cell_list)
         self.input_dp = RNNDropout(input_p)
-        self.hidden_dps = nn.ModuleList([nn.Dropout(hidden_p) for l in range(n_layers)])
+        self.hidden_dps = nn.ModuleList([nn.Dropout(hidden_p) for layer_index in range(n_layers)])
         self.reset_parameters()
 
     def __repr__(self):
@@ -216,15 +216,15 @@ class ConvGRU(nn.Module):
 
         last_state_list = []
 
-        for l, (gru_cell, hid_dp) in enumerate(zip(self.cell_list, self.hidden_dps)):
-            h = hidden_state[l]
+        for layer_index, (gru_cell, hid_dp) in enumerate(zip(self.cell_list, self.hidden_dps)):
+            h = hidden_state[layer_index]
             output_inner = []
             for t in range(seq_len):
                 h = gru_cell(input=cur_layer_input[t], h_prev=h)
                 output_inner.append(h)
 
             cur_layer_input = torch.stack(output_inner)  # list to array
-            if l != self.n_layers:
+            if layer_index != self.n_layers:
                 cur_layer_input = hid_dp(cur_layer_input)
             last_state_list.append(h)
 
