@@ -1,3 +1,4 @@
+"""Time distributed module"""
 import torch
 import torch.nn as nn
 

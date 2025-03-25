@@ -16,7 +16,6 @@ class MetNetPreprocessor(nn.Module):
         split_input: bool = True,
     ):
         """
-
         Performs the MetNet preprocessing of mean pooling Sat channels, followed by
         concatenating the center crop and mean pool
 
@@ -28,7 +27,7 @@ class MetNetPreprocessor(nn.Module):
             crop_size: Center crop size
             use_space2depth: Whether to use space2depth on satellite channels,
             or mean pooling, like in paper
-            split_input:
+            split_input: controls whether to split the input tensor
 
         """
         super().__init__()

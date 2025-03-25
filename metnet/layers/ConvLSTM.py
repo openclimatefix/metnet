@@ -107,6 +107,8 @@ class ConvLSTMCell(nn.Module):
 
 
 class ConvLSTM(nn.Module):
+    """Creates a convolution LSTM layer"""
+
     def __init__(
         self,
         input_dim: int,

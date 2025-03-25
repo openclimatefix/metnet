@@ -69,7 +69,7 @@ class ConvGRUCell(nn.Module):
         self.reset_parameters()
 
     def forward(self, input, h_prev=None):
-        """get the current hidden layer of the input layer"""
+        """Get the current hidden layer of the input layer"""
         # init hidden on forward
         if h_prev is None:
             h_prev = self.init_hidden(input)
@@ -238,6 +238,7 @@ class ConvGRU(nn.Module):
             c.reset_parameters()
 
     def get_init_states(self, input):
+        """Collects the init states from the cell list"""
         init_states = []
         for gru_cell in self.cell_list:
             init_states.append(gru_cell.init_hidden(input))
@@ -257,7 +258,7 @@ class ConvGRU(nn.Module):
 
     @staticmethod
     def _extend_for_multilayer(param, num_layers):
-        """convert the param into a list"""
+        """Convert the param into a list"""
         if not isinstance(param, list):
             param = [param] * num_layers
         return param

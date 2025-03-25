@@ -46,24 +46,25 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         attention is dropped, and there is more dilated convolutions instead.
 
         Args:
-            image_encoder:
-            input_channels:
-            input_size:
-            lstm_channels:
-            encoder_channels:
-            upsampler_channels:
-            lead_time_features:
-            upsample_method:
-            num_upsampler_blocks:
-            num_context_blocks:
-            num_input_timesteps:
-            encoder_dilations:
-            sat_channels:
-            output_channels:
-            kernel_size:
-            center_crop_size:
-            forecast_steps:
-            **kwargs:
+            image_encoder: string
+            input_channels: int
+            input_size: int
+            lstm_channels: int
+            encoder_channels: int
+            upsampler_channels: int
+            lead_time_features: int
+            upsample_method: string
+            num_upsampler_blocks: int
+            num_context_blocks: int
+            num_input_timesteps: int
+            encoder_dilations: list[int]
+            sat_channels: int
+            output_channels: int
+            kernel_size: int
+            center_crop_size: int
+            forecast_steps: int
+            use_preprocessor: bool
+            **kwargs: dict[str, Unknown]
         """
         super(MetNet2, self).__init__()
         config = locals()

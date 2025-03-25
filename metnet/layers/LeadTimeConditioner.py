@@ -1,3 +1,4 @@
+"""The lead time conditioner module"""
 import torch
 import torch.nn as nn
 
@@ -5,7 +6,7 @@ import torch.nn as nn
 class LeadTimeConditioner(nn.Module):
     """
 
-    The lead time conditioner for MetNet-2, based on 'FiLM: Visual Reasoning with a General Conditioning Layer'
+    The lead time conditioner for MetNet-2, based on 'FiLM: Visual Reasoning with a General Conditioning Layer.
 
     Paper: https://arxiv.org/pdf/1709.07871.pdf
 
