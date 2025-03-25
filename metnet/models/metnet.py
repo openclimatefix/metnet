@@ -8,7 +8,7 @@ from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocesso
 
 
 class MetNet(torch.nn.Module, PyTorchModelHubMixin):
-    """MetNet model for weather forecasting"""
+    """MetNet model for weather forecasting."""
 
     def __init__(
         self,
@@ -27,7 +27,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         use_preprocessor: bool = True,
         **kwargs,
     ):
-        """Setup the met net model"""
+        """Initialize the met net model."""
         super(MetNet, self).__init__()
         config = locals()
         config.pop("self")
@@ -88,7 +88,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
 
     def encode_timestep(self, x, fstep=1):
-        """Encode the passed in input"""
+        """Encode the passed in input."""
         # Preprocess Tensor
         x = self.preprocessor(x)
 
@@ -103,7 +103,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         return self.temporal_agg(self.position_embedding(state))
 
     def forward(self, imgs: torch.Tensor, lead_time: int = 0) -> torch.Tensor:
-        """It takes a rank 5 tensor
+        """Take a rank 5 tensor.
 
         - imgs [bs, seq_len, channels, h, w]
         """
@@ -113,21 +113,21 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
 
 
 class TemporalEncoder(nn.Module):
-    """encodes temporal features"""
+    """Encodes temporal features."""
 
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
-        """Takes a set of channels and layers"""
+        """Take a set of channels and layers."""
         super().__init__()
         self.out_channels = out_channels
         self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
 
     def forward(self, x):
-        """Performs a forward pass on the recurrent neural network"""
+        """Perform a forward pass on the recurrent neural network."""
         x, h = self.rnn(x)
         return (x, h[-1])
 
 
 def feat2image(x, target_size=(128, 128)):
-    """This idea comes from MetNet"""
+    """Idea comes from MetNet."""
     x = x.transpose(1, 2)
     return x.unsqueeze(-1).unsqueeze(-1) * x.new_ones(1, 1, 1, *target_size)

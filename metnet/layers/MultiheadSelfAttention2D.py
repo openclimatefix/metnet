@@ -38,8 +38,8 @@ class MultiheadSelfAttention2D(nn.Module):
             attention dropout rate, by default 0.0
         proj_drop : float, optional
             post attention projection dropout rate, by default 0.0
-        use_normalised_qk : bool, by default True
-            Normalise queries and keys, (as in Metnet 3)
+        use_normalized_qk : bool, by default True
+            Normalize queries and keys, (as in Metnet 3)
         rel_attn_bias : Type[nn.Module], optional
             Use Relative Position bias, by default None
         """

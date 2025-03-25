@@ -1,15 +1,15 @@
-"""Condition with time how MetNet-22 does it, with FiLM layers"""
+"""Condition with time how MetNet-22 does it, with FiLM layers."""
 import einops
 import torch
 from torch import nn as nn
 
 
 class ConditionWithTimeMetNet2(nn.Module):
-    """Compute Scale and bias for conditioning on time"""
+    """Compute Scale and bias for conditioning on time."""
 
     def __init__(self, forecast_steps: int, hidden_dim: int, num_feature_maps: int):
         """
-        Compute the scale and bias factors for conditioning convolutional blocks on forecast time
+        Compute the scale and bias factors for conditioning convolutional blocks on forecast time.
 
         Args:
             forecast_steps: Number of forecast steps
@@ -30,7 +30,7 @@ class ConditionWithTimeMetNet2(nn.Module):
 
     def forward(self, x: torch.Tensor, timestep: int) -> [torch.Tensor, torch.Tensor]:
         """
-        Get the scale and bias for the conditioning layers
+        Get the scale and bias for the conditioning layers.
 
         From the FiLM paper, each feature map (i.e. channel) has its own scale and bias layer,
         so needs a scale and bias for each feature map to be generated

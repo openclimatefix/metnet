@@ -27,7 +27,7 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
         use_preprocessor: bool = True,
         **kwargs,
     ):
-        """Setup the met net single shot."""
+        """Initialize the met net single shot."""
         super(MetNetSingleShot, self).__init__()
         config = locals()
         config.pop("self")

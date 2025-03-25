@@ -1,20 +1,18 @@
-"""
-Implementation of Stochastic Depth
-"""
+"""Implementation of Stochastic Depth."""
 import torch
 from torch import nn
 
 
 class StochasticDepth(nn.Module):
     """
-    Stochastic Depth
+    Stochastic Depth.
 
     Drops network paths with the given probability
     """
 
     def __init__(self, drop_prob: float = 0.0) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -27,7 +25,7 @@ class StochasticDepth(nn.Module):
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """
-        Forward Pass
+        Forward Pass.
 
         Parameters
         ----------

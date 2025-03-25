@@ -13,7 +13,7 @@ from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualC
 
 
 class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
-    """MetNet-2 model for weather forecasting"""
+    """MetNet-2 model for weather forecasting."""
 
     def __init__(
         self,
@@ -245,7 +245,7 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
 
     def forward(self, x: torch.Tensor, lead_time: int = 0):
         """
-        Compute for all forecast steps
+        Compute for all forecast steps.
 
         Args:
             x: Input tensor in [Batch, Time, Channel, Height, Width]
@@ -254,7 +254,6 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         Returns:
             The output predictions for all future timesteps
         """
-
         # Compute all timesteps, probably can be parallelized
         x = self.image_encoder(x)
         # Compute scale and bias

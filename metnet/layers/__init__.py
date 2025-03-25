@@ -1,4 +1,4 @@
-"""submodules for the layers"""
+"""Submodules for the layers."""
 from .ConditionTime import ConditionTime
 from .ConvGRU import ConvGRU
 from .DownSampler import DownSampler
