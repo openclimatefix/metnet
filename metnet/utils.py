@@ -1,8 +1,6 @@
 """Utilities"""
 import numpy as np
 
-"""provides utilities functions for the models to use"""
-
 
 def mrms_normalize(a):
     """

@@ -1,9 +1,12 @@
+"""Implementation of Conv GRU and cell module"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class ConvGRUCell(nn.Module):
+    """The Conv GRU Cell"""
+
     def __init__(
         self,
         input_dim,
@@ -15,6 +18,7 @@ class ConvGRUCell(nn.Module):
     ):
         """
         Initialize ConvGRU cell.
+
         Parameters
         ----------
         input_dim: int
@@ -65,6 +69,7 @@ class ConvGRUCell(nn.Module):
         self.reset_parameters()
 
     def forward(self, input, h_prev=None):
+        """get the current hidden layer of the input layer"""
         # init hidden on forward
         if h_prev is None:
             h_prev = self.init_hidden(input)
@@ -82,6 +87,7 @@ class ConvGRUCell(nn.Module):
         return h_cur
 
     def init_hidden(self, input):
+        """Creates and return a hidden layer"""
         bs, ch, h, w = input.shape
         return one_param(self).new_zeros(bs, self.hidden_dim, h, w)
 
@@ -114,10 +120,12 @@ class RNNDropout(nn.Module):
     """Dropout with probability `p` that is consistent on the seq_len dimension."""
 
     def __init__(self, p=0.5):
+        """Initial the RNN dropout layer"""
         super().__init__()
         self.p = p
 
     def forward(self, x):
+        """Calculate the dropout mask"""
         if not self.training or self.p == 0.0:
             return x
         return x * dropout_mask(x.data, (x.size(0), 1, *x.shape[2:]), self.p)
@@ -139,7 +147,7 @@ class ConvGRU(nn.Module):
         hidden_p=0.1,
         batchnorm=False,
     ):
-        "Setup the configurations of the conv GRU"
+        """Setup the configurations of the conv GRU"""
         super(ConvGRU, self).__init__()
 
         self._check_kernel_size_consistency(kernel_size)
@@ -249,6 +257,7 @@ class ConvGRU(nn.Module):
 
     @staticmethod
     def _extend_for_multilayer(param, num_layers):
+        """convert the param into a list"""
         if not isinstance(param, list):
             param = [param] * num_layers
         return param

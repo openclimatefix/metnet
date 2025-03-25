@@ -1,13 +1,12 @@
+"""Implementation of MetNet Processor"""
 import torch
 import torch.nn.functional as F
 import torchvision
 from torch import nn
 
-"""Met Net Processor"""
-
 
 class MetNetPreprocessor(nn.Module):
-    """Met Net Processor"""
+    """MetNet Processor"""
 
     def __init__(
         self,
@@ -29,6 +28,7 @@ class MetNetPreprocessor(nn.Module):
             crop_size: Center crop size
             use_space2depth: Whether to use space2depth on satellite channels,
             or mean pooling, like in paper
+            split_input:
 
         """
         super().__init__()

@@ -13,6 +13,7 @@ class TimeDistributed(nn.Module):
     """Applies `module` over `tdim` identically for each step, use `low_mem` to compute one at a time."""
 
     def __init__(self, module, low_mem=False, tdim=1):
+        """ "initializes the time distributed module"""
         super().__init__()
         self.module = module
         self.low_mem = low_mem
