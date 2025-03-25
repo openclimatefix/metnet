@@ -1,4 +1,4 @@
-"""MetNet-2 model for weather forecasting"""
+"""MetNet-2 model for weather forecasting."""
 from typing import List
 
 import torch
