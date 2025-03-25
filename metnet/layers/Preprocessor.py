@@ -16,8 +16,7 @@ class MetNetPreprocessor(nn.Module):
         split_input: bool = True,
     ):
         """
-        Performs the MetNet preprocessing of mean pooling Sat channels, followed by
-        concatenating the center crop and mean pool
+        Performs the MetNet preprocessing of mean pooling Sat channels, followed by concatenating the center crop and mean pool
 
         In the paper, the radar data is space2depth'd, while satellite channel is mean pooled,
         but for this different task, we choose to do either option for satellites
@@ -45,8 +44,9 @@ class MetNetPreprocessor(nn.Module):
         self.center_crop = torchvision.transforms.CenterCrop(size=crop_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Performs a forward pass in the channels of the tensor
-        
+        """
+        Performs a forward pass in the channels of the tensor
+
         Args:
             x: torch.Tensor)
         """

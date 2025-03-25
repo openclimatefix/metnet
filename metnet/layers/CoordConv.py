@@ -7,14 +7,19 @@ class AddCoords(nn.Module):
     """argument input tensors with spatial information"""
 
     def __init__(self, with_r=False):
-        """Args:
-        with_r: bool
+        """
+        initialize the add coordinates class
+
+        Args:
+            with_r: bool
         """
         super().__init__()
         self.with_r = with_r
 
     def forward(self, input_tensor):
         """
+        Adds spatial information to the input tensor
+
         Args:
             input_tensor: shape(batch, channel, x_dim, y_dim)
         """
@@ -52,6 +57,8 @@ class CoordConv(nn.Module):
 
     def __init__(self, in_channels, out_channels, with_r=False, **kwargs):
         """
+        Setup the coordinate convolution
+
         Args:
             in_channels : int
             out_channels : int,
@@ -67,6 +74,8 @@ class CoordConv(nn.Module):
 
     def forward(self, x):
         """
+        applies a forward pass to the input
+
         Args:
             x: tensor
         """

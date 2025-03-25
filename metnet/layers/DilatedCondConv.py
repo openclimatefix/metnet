@@ -17,7 +17,10 @@ class DilatedResidualConv(nn.Module):
         kernel_size: int = 3,
         activation: nn.Module = nn.ReLU(),
     ):
-        """Args:
+        """
+        initialize the Convolution Block with channels, kernel size and the activation function
+
+        Args:
         input_channels: int,
         output_channels: int = 384,
         dilation: int = 1,
@@ -53,7 +56,10 @@ class DilatedResidualConv(nn.Module):
             self.channel_changer = nn.Identity()
 
     def forward(self, x: torch.Tensor, beta: torch.Tensor, gamma: torch.Tensor) -> torch.Tensor:
-        """Args:
+        """
+        Applies a series of convolution steps to the tensor
+
+        Args:
         x: torch.Tensor,
         beta : torch.Tensor,
         gamma : torch.Tensor
@@ -81,7 +87,10 @@ class UpsampleResidualConv(nn.Module):
         kernel_size: int = 3,
         activation: nn.Module = nn.ReLU(),
     ):
-        """Args:
+        """
+        initialize the Upsample Residual Convolution
+
+        Args:
         input_channels: int,
         output_channels: int = 384,
         dilation: int = 1,
@@ -114,7 +123,10 @@ class UpsampleResidualConv(nn.Module):
             self.channel_changer = nn.Identity()
 
     def forward(self, x: torch.Tensor, beta: torch.Tensor, gamma: torch.Tensor) -> torch.Tensor:
-        """Args:
+        """
+        Applies a series of convolution steps to the tensor
+
+        Args:
         x: torch.Tensor,
         beta : torch.Tensor,
         gamma : torch.Tensor

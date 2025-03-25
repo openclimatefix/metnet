@@ -1,4 +1,4 @@
-"""MetNet model for weather forecasting"""
+"""MetNet model for weather forecasting."""
 import torch
 import torch.nn as nn
 from axial_attention import AxialAttention, AxialPositionalEmbedding

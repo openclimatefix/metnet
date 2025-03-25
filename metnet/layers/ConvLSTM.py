@@ -83,6 +83,7 @@ class ConvLSTMCell(nn.Module):
     def init_hidden(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Initializes the hidden state
+
         Args:
             x: Input tensor to initialize for
 

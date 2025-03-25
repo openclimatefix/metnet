@@ -68,7 +68,7 @@ class ConvGRUCell(nn.Module):
 
         self.reset_parameters()
 
-    def forward(self, input, h_prev=None):
+    def forward(self, input: torch.Tensor, h_prev=None):
         """Get the current hidden layer of the input layer"""
         # init hidden on forward
         if h_prev is None:
@@ -86,7 +86,7 @@ class ConvGRUCell(nn.Module):
 
         return h_cur
 
-    def init_hidden(self, input):
+    def init_hidden(self, input: torch.Tensor):
         """Creates and return a hidden layer"""
         bs, ch, h, w = input.shape
         return one_param(self).new_zeros(bs, self.hidden_dim, h, w)
@@ -197,6 +197,9 @@ class ConvGRU(nn.Module):
 
     def forward(self, input, hidden_state=None):
         """
+
+        passes the input tensor into a sequence of models
+
         Parameters
         ----------
         input_tensor:
@@ -246,10 +249,7 @@ class ConvGRU(nn.Module):
 
     @staticmethod
     def _check_kernel_size_consistency(kernel_size):
-        """Check if kernel size is a tuple or is a list of tuples
-        
-
-        """
+        """Check if kernel size is a tuple or is a list of tuples"""
         if not (
             isinstance(kernel_size, tuple)
             or (
@@ -260,9 +260,8 @@ class ConvGRU(nn.Module):
             raise ValueError("`kernel_size` must be tuple or list of tuples")
 
     @staticmethod
-    def _extend_for_multilayer(param, num_layers : int):
-        """Convert the param into a list
-        """
+    def _extend_for_multilayer(param, num_layers: int):
+        """Convert the param into a list"""
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
