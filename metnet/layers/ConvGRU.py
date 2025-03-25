@@ -86,6 +86,7 @@ class ConvGRUCell(nn.Module):
         return one_param(self).new_zeros(bs, self.hidden_dim, h, w)
 
     def reset_parameters(self):
+        """Reset the weights and bias of the ConvGRU cell"""
         # self.conv.reset_parameters()
         nn.init.xavier_uniform_(self.conv_zr.weight, gain=nn.init.calculate_gain("tanh"))
         self.conv_zr.bias.data.zero_()
@@ -181,6 +182,7 @@ class ConvGRU(nn.Module):
         self.reset_parameters()
 
     def __repr__(self):
+        """Return a string representation of the configuration options of the conv gru for the layers"""
         s = f"ConvGru(in={self.input_dim}, out={self.hidden_dim[0]}, ks={self.kernel_size[0]}, "
         s += f"n_layers={self.n_layers}, input_p={self.input_p}, hidden_p={self.hidden_p})"
         return s
@@ -223,6 +225,7 @@ class ConvGRU(nn.Module):
         return layer_output, last_state_list
 
     def reset_parameters(self):
+        """Reset the parameters of each of the conv gru cells in the list"""
         for c in self.cell_list:
             c.reset_parameters()
 
@@ -234,6 +237,7 @@ class ConvGRU(nn.Module):
 
     @staticmethod
     def _check_kernel_size_consistency(kernel_size):
+        """Check if kernel size is a tuple or is a list of tuples"""
         if not (
             isinstance(kernel_size, tuple)
             or (

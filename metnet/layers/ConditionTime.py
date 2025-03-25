@@ -1,3 +1,6 @@
+"""Condition time module"""
+
+
 import torch
 from torch import nn as nn
 

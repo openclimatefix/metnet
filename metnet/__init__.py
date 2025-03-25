@@ -4,5 +4,4 @@ from metnet.models.metnet_pv import MetNetPV
 
 from .layers import *
 
-
 """The initialize file for the models"""

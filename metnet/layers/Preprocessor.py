@@ -46,6 +46,7 @@ class MetNetPreprocessor(nn.Module):
         self.center_crop = torchvision.transforms.CenterCrop(size=crop_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Performs a forward pass in the channels of the tensor"""
         if self.split_input:
             sat_channels = x[:, :, : self.sat_channels, :, :]
             other_channels = x[:, :, self.sat_channels :, :, :]

@@ -47,4 +47,5 @@ class TimeDistributed(nn.Module):
         return out.view(bs, seq_len, *out.shape[1:])
 
     def __repr__(self):
+        """Return a representation of the time distributed module"""
         return f"TimeDistributed({self.module})"
