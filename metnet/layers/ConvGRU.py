@@ -1,11 +1,11 @@
-"""Implementation of Conv GRU and cell module"""
+"""Implementation of Conv GRU and cell module."""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class ConvGRUCell(nn.Module):
-    """The Conv GRU Cell"""
+    """The Conv GRU Cell."""
 
     def __init__(
         self,
@@ -69,7 +69,7 @@ class ConvGRUCell(nn.Module):
         self.reset_parameters()
 
     def forward(self, input: torch.Tensor, h_prev=None):
-        """Get the current hidden layer of the input layer"""
+        """Get the current hidden layer of the input layer."""
         # init hidden on forward
         if h_prev is None:
             h_prev = self.init_hidden(input)
@@ -87,12 +87,12 @@ class ConvGRUCell(nn.Module):
         return h_cur
 
     def init_hidden(self, input: torch.Tensor):
-        """Creates and return a hidden layer"""
+        """Create and return a hidden layer."""
         bs, ch, h, w = input.shape
         return one_param(self).new_zeros(bs, self.hidden_dim, h, w)
 
     def reset_parameters(self):
-        """Reset the weights and bias of the ConvGRU cell"""
+        """Reset the weights and bias of the ConvGRU cell."""
         # self.conv.reset_parameters()
         nn.init.xavier_uniform_(self.conv_zr.weight, gain=nn.init.calculate_gain("tanh"))
         self.conv_zr.bias.data.zero_()
@@ -107,7 +107,7 @@ class ConvGRUCell(nn.Module):
 
 
 def one_param(m):
-    """First parameter in `m`"""
+    """First parameter in `m`."""
     return next(m.parameters())
 
 
@@ -120,19 +120,19 @@ class RNNDropout(nn.Module):
     """Dropout with probability `p` that is consistent on the seq_len dimension."""
 
     def __init__(self, p=0.5):
-        """Initial the RNN dropout layer"""
+        """Initialize the RNN dropout layer."""
         super().__init__()
         self.p = p
 
     def forward(self, x):
-        """Calculate the dropout mask"""
+        """Calculate the dropout mask."""
         if not self.training or self.p == 0.0:
             return x
         return x * dropout_mask(x.data, (x.size(0), 1, *x.shape[2:]), self.p)
 
 
 class ConvGRU(nn.Module):
-    """Conv GRU"""
+    """Conv GRU."""
 
     def __init__(
         self,
@@ -147,7 +147,7 @@ class ConvGRU(nn.Module):
         hidden_p=0.1,
         batchnorm=False,
     ):
-        """Setup the configurations of the conv GRU"""
+        """Initialize the configurations of the conv GRU."""
         super(ConvGRU, self).__init__()
 
         self._check_kernel_size_consistency(kernel_size)
@@ -190,7 +190,7 @@ class ConvGRU(nn.Module):
         self.reset_parameters()
 
     def __repr__(self):
-        """Return a string representation of the configuration options of the conv gru for the layers"""
+        """Return a string representation of the configuration options of the conv gru for the layers."""
         s = f"ConvGru(in={self.input_dim}, out={self.hidden_dim[0]}, ks={self.kernel_size[0]}, "
         s += f"n_layers={self.n_layers}, input_p={self.input_p}, hidden_p={self.hidden_p})"
         return s
@@ -198,7 +198,7 @@ class ConvGRU(nn.Module):
     def forward(self, input, hidden_state=None):
         """
 
-        passes the input tensor into a sequence of models
+        Pass the input tensor into a sequence of models.
 
         Parameters
         ----------
@@ -236,12 +236,12 @@ class ConvGRU(nn.Module):
         return layer_output, last_state_list
 
     def reset_parameters(self):
-        """Reset the parameters of each of the conv gru cells in the list"""
+        """Reset the parameters of each of the conv gru cells in the list."""
         for c in self.cell_list:
             c.reset_parameters()
 
     def get_init_states(self, input):
-        """Collects the init states from the cell list"""
+        """Collect the init states from the cell list."""
         init_states = []
         for gru_cell in self.cell_list:
             init_states.append(gru_cell.init_hidden(input))
@@ -249,7 +249,7 @@ class ConvGRU(nn.Module):
 
     @staticmethod
     def _check_kernel_size_consistency(kernel_size):
-        """Check if kernel size is a tuple or is a list of tuples"""
+        """Check if kernel size is a tuple or is a list of tuples."""
         if not (
             isinstance(kernel_size, tuple)
             or (
@@ -261,7 +261,7 @@ class ConvGRU(nn.Module):
 
     @staticmethod
     def _extend_for_multilayer(param, num_layers: int):
-        """Convert the param into a list"""
+        """Convert the param into a list."""
         if not isinstance(param, list):
             param = [param] * num_layers
         return param

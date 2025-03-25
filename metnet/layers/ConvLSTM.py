@@ -1,4 +1,4 @@
-"""Originally adapted from https://github.com/aserdega/convlstmgru, MIT License Andriy Serdega"""
+"""Originally adapted from https://github.com/aserdega/convlstmgru, MIT License Andriy Serdega."""
 from typing import Any, List, Optional
 
 import torch
@@ -7,7 +7,7 @@ from torch import Tensor
 
 
 class ConvLSTMCell(nn.Module):
-    """ConvLSTM Cell"""
+    """Conv LSTM Cell."""
 
     def __init__(
         self,
@@ -19,7 +19,7 @@ class ConvLSTMCell(nn.Module):
         batchnorm=False,
     ):
         """
-        ConLSTM Cell
+        Conv LSTM Cell.
 
         Args:
             input_dim: Number of input channels
@@ -52,7 +52,7 @@ class ConvLSTMCell(nn.Module):
 
     def forward(self, x: torch.Tensor, prev_state: list) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Compute forward pass
+        Compute forward pass.
 
         Args:
             x: Input tensor of [Batch, Channel, Height, Width]
@@ -82,7 +82,7 @@ class ConvLSTMCell(nn.Module):
 
     def init_hidden(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Initializes the hidden state
+        Initialize the hidden state.
 
         Args:
             x: Input tensor to initialize for
@@ -98,7 +98,7 @@ class ConvLSTMCell(nn.Module):
         return state
 
     def reset_parameters(self) -> None:
-        """Resets parameters"""
+        """Reset parameters."""
         nn.init.xavier_uniform_(self.conv.weight, gain=nn.init.calculate_gain("tanh"))
         self.conv.bias.data.zero_()
 
@@ -108,7 +108,7 @@ class ConvLSTMCell(nn.Module):
 
 
 class ConvLSTM(nn.Module):
-    """Creates a convolution LSTM layer"""
+    """Creates a convolution LSTM layer."""
 
     def __init__(
         self,
@@ -121,7 +121,7 @@ class ConvLSTM(nn.Module):
         batchnorm=False,
     ):
         """
-        ConvLSTM module
+        Conv LSTM module.
 
         Args:
             input_dim: Input dimension size
@@ -172,7 +172,7 @@ class ConvLSTM(nn.Module):
         self, x: torch.Tensor, hidden_state: Optional[list] = None
     ) -> tuple[Tensor, list[tuple[Any, Any]]]:
         """
-        Computes the output of the ConvLSTM
+        Compute the output of the ConvLSTM.
 
         Args:
             x: Input Tensor of shape [Batch, Time, Channel, Width, Height]
@@ -205,15 +205,13 @@ class ConvLSTM(nn.Module):
         return layer_output, last_state_list
 
     def reset_parameters(self) -> None:
-        """
-        Reset parameters
-        """
+        """Reset parameters."""
         for c in self.cell_list:
             c.reset_parameters()
 
     def get_init_states(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
-        Constructs the initial hidden states
+        Construct the initial hidden states.
 
         Args:
             x: Tensor to use for constructing state
@@ -229,7 +227,7 @@ class ConvLSTM(nn.Module):
     @staticmethod
     def _extend_for_multilayer(param, num_layers):
         """
-        Extends a parameter for multiple layers
+        Extend a parameter for multiple layers.
 
         Args:
             param: Parameter to copy

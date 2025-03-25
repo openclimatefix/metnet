@@ -1,4 +1,4 @@
-"""Dilated Time Conditioned Residual Convolution Block for MetNet-2"""
+"""Dilated Time Conditioned Residual Convolution Block for MetNet-2."""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +7,7 @@ from metnet.layers.LeadTimeConditioner import LeadTimeConditioner
 
 
 class DilatedResidualConv(nn.Module):
-    """Dilated Time Conditioned Residual Convolution Block"""
+    """Dilated Time Conditioned Residual Convolution Block."""
 
     def __init__(
         self,
@@ -18,7 +18,7 @@ class DilatedResidualConv(nn.Module):
         activation: nn.Module = nn.ReLU(),
     ):
         """
-        initialize the Convolution Block with channels, kernel size and the activation function
+        Initialize the Convolution Block with channels, kernel size and the activation function.
 
         Args:
         input_channels: int,
@@ -27,7 +27,6 @@ class DilatedResidualConv(nn.Module):
         kernel_size: int = 3,
         activation: nn.Module = nn.ReLU(),
         """
-
         super().__init__()
         self.output_channels = output_channels
         self.dilated_conv_one = nn.Conv2d(
@@ -57,7 +56,7 @@ class DilatedResidualConv(nn.Module):
 
     def forward(self, x: torch.Tensor, beta: torch.Tensor, gamma: torch.Tensor) -> torch.Tensor:
         """
-        Applies a series of convolution steps to the tensor
+        Apply a series of convolution steps to the tensor.
 
         Args:
         x: torch.Tensor,
@@ -77,7 +76,7 @@ class DilatedResidualConv(nn.Module):
 
 
 class UpsampleResidualConv(nn.Module):
-    """Upsample Residual Convolution"""
+    """Upsample Residual Convolution."""
 
     def __init__(
         self,
@@ -88,7 +87,7 @@ class UpsampleResidualConv(nn.Module):
         activation: nn.Module = nn.ReLU(),
     ):
         """
-        initialize the Upsample Residual Convolution
+        Initialize the Upsample Residual Convolution.
 
         Args:
         input_channels: int,
@@ -124,7 +123,7 @@ class UpsampleResidualConv(nn.Module):
 
     def forward(self, x: torch.Tensor, beta: torch.Tensor, gamma: torch.Tensor) -> torch.Tensor:
         """
-        Applies a series of convolution steps to the tensor
+        Apply a series of convolution steps to the tensor.
 
         Args:
         x: torch.Tensor,

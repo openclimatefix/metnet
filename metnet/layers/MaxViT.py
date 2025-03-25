@@ -1,6 +1,4 @@
-"""
-Implementation of MaxViT module
-"""
+"""Implementation of MaxViT module."""
 from dataclasses import dataclass
 from typing import List, Tuple, Type, Union
 
@@ -14,7 +12,7 @@ from metnet.layers.PartitionAttention import BlockAttention, GridAttention
 @dataclass
 class MaxViTDataClass:
     """
-    DataClass for MaxViT
+    DataClass for MaxViT.
 
     Parameters
     ----------
@@ -106,13 +104,11 @@ class MaxViTDataClass:
 
 
 class MaxViTBlock(nn.Module):
-    """
-    MaxViT block
-    """
+    """MaxViT block."""
 
     def __init__(self, in_channels: int, maxvit_config: Type[MaxViTDataClass]) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -180,7 +176,6 @@ class MaxViTBlock(nn.Module):
         torch.Tensor
             MaxViT block output tensor of the shape [N, C, H, W]
         """
-
         output = self.mb_conv(X)
         output = self.block_attention(output)
         output = self.grid_attention(output)
@@ -189,9 +184,7 @@ class MaxViTBlock(nn.Module):
 
 
 class MetNetMaxVit(nn.Module):
-    """
-    MaxViT block implemented with MetNet 3 modifications.
-    """
+    """MaxViT block implemented with MetNet 3 modifications."""
 
     def __init__(
         self,
@@ -202,7 +195,7 @@ class MetNetMaxVit(nn.Module):
         set_linear_stocastic_depth: bool = True,
     ) -> None:
         """
-        MetNet3 MaxViT Block
+        MetNet3 MaxViT Block.
 
         Parameters
         ----------
@@ -250,7 +243,7 @@ class MetNetMaxVit(nn.Module):
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """
-        Forward method
+        Forward method.
 
         Parameters
         ----------

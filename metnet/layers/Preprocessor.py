@@ -1,4 +1,4 @@
-"""Implementation of MetNet Processor"""
+"""Implementation of MetNet Processor."""
 import torch
 import torch.nn.functional as F
 import torchvision
@@ -6,7 +6,7 @@ from torch import nn
 
 
 class MetNetPreprocessor(nn.Module):
-    """MetNet Processor"""
+    """MetNet Processor."""
 
     def __init__(
         self,
@@ -16,7 +16,7 @@ class MetNetPreprocessor(nn.Module):
         split_input: bool = True,
     ):
         """
-        Performs the MetNet preprocessing of mean pooling Sat channels, followed by concatenating the center crop and mean pool
+        Perform the MetNet preprocessing of mean pooling Sat channels, followed by concatenating the center crop and mean pool.
 
         In the paper, the radar data is space2depth'd, while satellite channel is mean pooled,
         but for this different task, we choose to do either option for satellites
@@ -45,7 +45,7 @@ class MetNetPreprocessor(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Performs a forward pass in the channels of the tensor
+        Perform a forward pass in the channels of the tensor.
 
         Args:
             x: torch.Tensor)

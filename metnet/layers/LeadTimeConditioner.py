@@ -1,4 +1,4 @@
-"""The lead time conditioner module"""
+"""The lead time conditioner module."""
 import torch
 import torch.nn as nn
 
@@ -14,7 +14,7 @@ class LeadTimeConditioner(nn.Module):
 
     def forward(self, x: torch.Tensor, scale: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
         """
-        Add the conditioning to the input tensor
+        Add the conditioning to the input tensor.
 
         Args:
             x: Input tensor

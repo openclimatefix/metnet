@@ -1,6 +1,4 @@
-"""
-MBConv Implementation
-"""
+"""MBConv Implementation."""
 from typing import Type
 
 import torch
@@ -11,9 +9,7 @@ from metnet.layers.StochasticDepth import StochasticDepth
 
 
 class MBConv(nn.Module):
-    """
-    MB Conv implementation, inspired by timm's implementation.
-    """
+    """MB Conv implementation, inspired by timm's implementation."""
 
     def __init__(
         self,
@@ -27,7 +23,7 @@ class MBConv(nn.Module):
         se_bottleneck_ratio: float = 0.25,
     ):
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -106,7 +102,7 @@ class MBConv(nn.Module):
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """
-        Forward step
+        Forward step.
 
         Parameters
         ----------

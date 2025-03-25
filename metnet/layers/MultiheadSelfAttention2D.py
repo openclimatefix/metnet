@@ -1,6 +1,4 @@
-"""
-MultiHeaded 2D Self Attention  Implementation
-"""
+"""MultiHeaded 2D Self Attention Implementation."""
 from typing import Type
 
 import torch
@@ -8,9 +6,7 @@ import torch.nn as nn
 
 
 class MultiheadSelfAttention2D(nn.Module):
-    """
-    Implementing multi-head self-attention for 2D images.
-    """
+    """Implementing multi-head self-attention for 2D images."""
 
     def __init__(
         self,
@@ -23,7 +19,7 @@ class MultiheadSelfAttention2D(nn.Module):
         rel_attn_bias: Type[nn.Module] = None,
     ) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -84,7 +80,6 @@ class MultiheadSelfAttention2D(nn.Module):
         torch.Tensor
             Output tensor after multi-head self-attention of shape (N, C, H, W).
         """
-
         N, C, H, W = X.size()
         # Compute Q, K, V
         Q = self.query(X)

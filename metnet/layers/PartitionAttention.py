@@ -1,6 +1,4 @@
-"""
-Implementation of Partition (Grid and Block) Attention
-"""
+"""Implementation of Partition (Grid and Block) Attention."""
 from typing import Tuple, Type
 
 import torch
@@ -12,13 +10,11 @@ from metnet.layers.StochasticDepth import StochasticDepth
 
 
 class PointwiseMLP(nn.Module):
-    """
-    Pointwise MLP for [N, C, H, W] images
-    """
+    """Pointwise MLP for [N, C, H, W] images."""
 
     def __init__(self, in_channels: int, out_channels: int = None, hidden_dim: int = None) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -44,7 +40,7 @@ class PointwiseMLP(nn.Module):
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """
-        Forward Method
+        Forward Method.
 
         Parameters
         ----------
@@ -62,7 +58,7 @@ class PointwiseMLP(nn.Module):
 
 class PartitionAttention(nn.Module):
     """
-    Partition Attention
+    Partition Attention.
 
     Implements the common functionality for block and grid attention.
     X ← X + StochasticDepth(RelAttention(PreNorm(Partition(X))))
@@ -86,7 +82,7 @@ class PartitionAttention(nn.Module):
         use_normalised_qk: bool = True,
     ) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -166,7 +162,7 @@ class PartitionAttention(nn.Module):
         original_size: Tuple[int, int],
     ):
         """
-        Undo Partition
+        Undo Partition.
 
         To be overridden by functions reversing the block or grid partitions
 
@@ -217,9 +213,7 @@ class PartitionAttention(nn.Module):
 
 
 class BlockAttention(PartitionAttention):
-    """
-    Block Attention.
-    """
+    """Block Attention."""
 
     def __init__(
         self,
@@ -236,7 +230,7 @@ class BlockAttention(PartitionAttention):
         use_normalised_qk: bool = True,
     ) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -356,9 +350,7 @@ class BlockAttention(PartitionAttention):
 
 
 class GridAttention(PartitionAttention):
-    """
-    Grid Attention
-    """
+    """Grid Attention."""
 
     def __init__(
         self,
@@ -375,7 +367,7 @@ class GridAttention(PartitionAttention):
         use_normalised_qk: bool = True,
     ) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------

@@ -1,14 +1,14 @@
-"""The coordinate convolution class"""
+"""The coordinate convolution class."""
 import torch
 import torch.nn as nn
 
 
 class AddCoords(nn.Module):
-    """argument input tensors with spatial information"""
+    """argument input tensors with spatial information."""
 
     def __init__(self, with_r=False):
         """
-        initialize the add coordinates class
+        Initialize the add coordinates class.
 
         Args:
             with_r: bool
@@ -18,7 +18,7 @@ class AddCoords(nn.Module):
 
     def forward(self, input_tensor):
         """
-        Adds spatial information to the input tensor
+        Add spatial information to the input tensor.
 
         Args:
             input_tensor: shape(batch, channel, x_dim, y_dim)
@@ -53,11 +53,11 @@ class AddCoords(nn.Module):
 
 
 class CoordConv(nn.Module):
-    """coordinate convolution"""
+    """Coordinate convolution."""
 
     def __init__(self, in_channels, out_channels, with_r=False, **kwargs):
         """
-        Setup the coordinate convolution
+        Initialize the coordinate convolution.
 
         Args:
             in_channels : int
@@ -74,7 +74,7 @@ class CoordConv(nn.Module):
 
     def forward(self, x):
         """
-        applies a forward pass to the input
+        Apply a forward pass to the input.
 
         Args:
             x: tensor
