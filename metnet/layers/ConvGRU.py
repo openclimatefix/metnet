@@ -246,7 +246,10 @@ class ConvGRU(nn.Module):
 
     @staticmethod
     def _check_kernel_size_consistency(kernel_size):
-        """Check if kernel size is a tuple or is a list of tuples"""
+        """Check if kernel size is a tuple or is a list of tuples
+        
+
+        """
         if not (
             isinstance(kernel_size, tuple)
             or (
@@ -257,8 +260,9 @@ class ConvGRU(nn.Module):
             raise ValueError("`kernel_size` must be tuple or list of tuples")
 
     @staticmethod
-    def _extend_for_multilayer(param, num_layers):
-        """Convert the param into a list"""
+    def _extend_for_multilayer(param, num_layers : int):
+        """Convert the param into a list
+        """
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
