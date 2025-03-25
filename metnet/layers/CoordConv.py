@@ -1,4 +1,5 @@
 """The coordinate convolution class."""
+
 import torch
 import torch.nn as nn
 
@@ -38,7 +39,11 @@ class AddCoords(nn.Module):
         yy_channel = yy_channel.repeat(batch_size, 1, 1, 1).transpose(2, 3)
 
         ret = torch.cat(
-            [input_tensor, xx_channel.type_as(input_tensor), yy_channel.type_as(input_tensor)],
+            [
+                input_tensor,
+                xx_channel.type_as(input_tensor),
+                yy_channel.type_as(input_tensor),
+            ],
             dim=1,
         )
 

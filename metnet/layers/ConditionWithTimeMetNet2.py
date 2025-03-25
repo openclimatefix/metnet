@@ -1,4 +1,5 @@
 """Condition with time how MetNet-22 does it, with FiLM layers."""
+
 import einops
 import torch
 from torch import nn as nn
@@ -50,6 +51,9 @@ class ConditionWithTimeMetNet2(nn.Module):
             timesteps = layer(timesteps)
         scales_and_biases = timesteps
         scales_and_biases = einops.rearrange(
-            scales_and_biases, "b (block sb) -> b block sb", block=self.num_feature_maps, sb=2
+            scales_and_biases,
+            "b (block sb) -> b block sb",
+            block=self.num_feature_maps,
+            sb=2,
         )
         return scales_and_biases[:, :, 0], scales_and_biases[:, :, 1]

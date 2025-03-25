@@ -1,4 +1,5 @@
 """MetNet-2 model for weather forecasting."""
+
 from typing import List
 
 import torch
@@ -175,7 +176,9 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         if upsample_method == "interp":
             self.upsample = nn.Upsample(scale_factor=4, mode="nearest")
             self.upsampler_changer = nn.Conv2d(
-                in_channels=encoder_channels, out_channels=upsampler_channels, kernel_size=(1, 1)
+                in_channels=encoder_channels,
+                out_channels=upsampler_channels,
+                kernel_size=(1, 1),
             )
         else:
             # The paper though, under the architecture, has 2 upsample blocks with 512 channels,

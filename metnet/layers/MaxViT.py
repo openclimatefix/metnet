@@ -1,4 +1,5 @@
 """Implementation of MaxViT module."""
+
 from dataclasses import dataclass
 from typing import List, Tuple, Type, Union
 

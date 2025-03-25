@@ -1,4 +1,5 @@
 """Implementation of Relative Position Bias."""
+
 from typing import Tuple
 
 import torch

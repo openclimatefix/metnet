@@ -1,4 +1,5 @@
 """MultiHeaded 2D Self Attention Implementation."""
+
 from typing import Type
 
 import torch
@@ -35,7 +36,7 @@ class MultiheadSelfAttention2D(nn.Module):
         proj_drop : float, optional
             post attention projection dropout rate, by default 0.0
         use_normalized_qk : bool, by default True
-            Normalize queries and keys, (as in Metnet 3)
+            Normalize queries and keys, (as in MetNet 3)
         rel_attn_bias : Type[nn.Module], optional
             Use Relative Position bias, by default None
         """
@@ -60,7 +61,7 @@ class MultiheadSelfAttention2D(nn.Module):
         # Output projection
         self.out_proj = nn.Conv2d(attention_channels, in_channels, kernel_size=1)
 
-        # Normalised Keys and Queries as specified in Metnet 3
+        # Normalised Keys and Queries as specified in MetNet 3
         self.use_normalised_qk = use_normalised_qk
 
         self.attn_drop = nn.Dropout(p=attn_drop)

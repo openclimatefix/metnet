@@ -1,11 +1,18 @@
 """MetNet Photovoltaics model."""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from axial_attention import AxialAttention, AxialPositionalEmbedding
 from huggingface_hub import PyTorchModelHubMixin
 
-from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
+from metnet.layers import (
+    ConditionTime,
+    ConvGRU,
+    DownSampler,
+    MetNetPreprocessor,
+    TimeDistributed,
+)
 
 
 class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
@@ -86,7 +93,10 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         self.image_encoder = TimeDistributed(image_encoder)
         self.ct = ConditionTime(forecast_steps)
         self.temporal_enc = TemporalEncoder(
-            image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
+            image_encoder.output_channels,
+            hidden_dim,
+            ks=kernel_size,
+            n_layers=num_layers,
         )
         self.position_embedding = AxialPositionalEmbedding(
             dim=self.temporal_enc.out_channels, shape=(input_size // 4, input_size // 4)

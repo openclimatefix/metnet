@@ -1,4 +1,5 @@
 """Implementation of Stochastic Depth."""
+
 import torch
 from torch import nn
 

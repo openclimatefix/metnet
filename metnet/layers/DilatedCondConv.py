@@ -1,4 +1,5 @@
 """Dilated Time Conditioned Residual Convolution Block for MetNet-2."""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -49,7 +50,9 @@ class DilatedResidualConv(nn.Module):
         # To make sure number of channels match, might need a 1x1 conv
         if input_channels != output_channels:
             self.channel_changer = nn.Conv2d(
-                in_channels=input_channels, out_channels=output_channels, kernel_size=(1, 1)
+                in_channels=input_channels,
+                out_channels=output_channels,
+                kernel_size=(1, 1),
             )
         else:
             self.channel_changer = nn.Identity()
@@ -116,7 +119,9 @@ class UpsampleResidualConv(nn.Module):
 
         if input_channels != output_channels:
             self.channel_changer = nn.Conv2d(
-                in_channels=input_channels, out_channels=output_channels, kernel_size=(1, 1)
+                in_channels=input_channels,
+                out_channels=output_channels,
+                kernel_size=(1, 1),
             )
         else:
             self.channel_changer = nn.Identity()

@@ -1,4 +1,5 @@
 """MetNet single shot model."""
+
 import torch
 import torch.nn as nn
 from axial_attention import AxialAttention, AxialPositionalEmbedding
@@ -72,7 +73,10 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
         self.image_encoder = TimeDistributed(image_encoder)
         self.temporal_enc = TemporalEncoder(
-            image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
+            image_encoder.output_channels,
+            hidden_dim,
+            ks=kernel_size,
+            n_layers=num_layers,
         )
         self.position_embedding = AxialPositionalEmbedding(
             dim=self.temporal_enc.out_channels, shape=(input_size // 4, input_size // 4)
