@@ -39,7 +39,7 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         **kwargs,
     ):
         """
-        MetNet-2 builds on MetNet-1 to use an even larger context area to predict up to 12 hours ahead.
+        MetNet-2 extends MetNet-1 to use an even larger context area to predict from 12 hours ahead.
 
         Paper: https://arxiv.org/pdf/2111.07470.pdf
 

@@ -12,7 +12,7 @@ def _stack_tups(tuples, stack_dim=1):
 
 
 class TimeDistributed(nn.Module):
-    """Applies `module` over `tdim` identically for each step, use `low_mem` to compute one at a time."""
+    """Applies `module` over `tdim` for each step, use `low_mem` to compute one at a time."""
 
     def __init__(self, module, low_mem=False, tdim=1):
         """Initialize the time distributed module."""

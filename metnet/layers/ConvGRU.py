@@ -113,7 +113,12 @@ def one_param(m):
 
 
 def dropout_mask(x, sz, p):
-    """Return a dropout mask of the same type as `x`, size `sz`, with probability `p` to cancel an element."""
+    """
+    Get the dropout mask of x.
+
+    Return a dropout mask of the same type as `x`, size `sz`, with probability
+    `p` to cancel an element.
+    """
     return x.new_empty(*sz).bernoulli_(1 - p).div_(1 - p)
 
 
@@ -191,7 +196,7 @@ class ConvGRU(nn.Module):
         self.reset_parameters()
 
     def __repr__(self):
-        """Return a string representation of the configuration options of the conv gru for the layers."""
+        """Return a string representation of the configuration options of the conv gru."""
         s = f"ConvGru(in={self.input_dim}, out={self.hidden_dim[0]}, ks={self.kernel_size[0]}, "
         s += f"n_layers={self.n_layers}, input_p={self.input_p}, hidden_p={self.hidden_p})"
         return s

@@ -17,7 +17,10 @@ class MetNetPreprocessor(nn.Module):
         split_input: bool = True,
     ):
         """
-        Perform the MetNet preprocessing of mean pooling Sat channels, followed by concatenating the center crop and mean pool.
+        The init function for MetNet Processor
+
+        Perform the MetNet preprocessing of mean pooling Sat channels, followed
+        by concatenating the center crop and mean pool.
 
         In the paper, the radar data is space2depth'd, while satellite channel is mean pooled,
         but for this different task, we choose to do either option for satellites
