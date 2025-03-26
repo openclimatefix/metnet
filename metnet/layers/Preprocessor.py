@@ -17,7 +17,7 @@ class MetNetPreprocessor(nn.Module):
         split_input: bool = True,
     ):
         """
-        The init function for MetNet Processor
+        Initialize function for MetNet Processor.
 
         Perform the MetNet preprocessing of mean pooling Sat channels, followed
         by concatenating the center crop and mean pool.
