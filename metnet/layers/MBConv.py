@@ -10,7 +10,7 @@ from metnet.layers.StochasticDepth import StochasticDepth
 
 
 class MBConv(nn.Module):
-    """MB Conv implementation, inspired by timm's implementation."""
+    """MBConv implementation, inspired by timm's implementation."""
 
     def __init__(
         self,

@@ -8,7 +8,7 @@ from torch import Tensor
 
 
 class ConvLSTMCell(nn.Module):
-    """Conv LSTM Cell."""
+    """ConvLSTM Cell."""
 
     def __init__(
         self,
@@ -20,7 +20,7 @@ class ConvLSTMCell(nn.Module):
         batchnorm=False,
     ):
         """
-        Conv LSTM Cell.
+        ConvLSTM Cell.
 
         Args:
             input_dim: Number of input channels
@@ -122,7 +122,7 @@ class ConvLSTM(nn.Module):
         batchnorm=False,
     ):
         """
-        Conv LSTM module.
+        ConvLSTM module.
 
         Args:
             input_dim: Input dimension size

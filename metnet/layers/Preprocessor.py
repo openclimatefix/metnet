@@ -17,8 +17,8 @@ class MetNetPreprocessor(nn.Module):
         split_input: bool = True,
     ):
         """
-        Initialize function for MetNet Processor.
-
+        MetNet Preprocessor
+        
         Perform the MetNet preprocessing of mean pooling Sat channels, followed
         by concatenating the center crop and mean pool.
 
@@ -52,7 +52,7 @@ class MetNetPreprocessor(nn.Module):
         Perform a forward pass in the channels of the tensor.
 
         Args:
-            x: torch.Tensor)
+            x: input Tensor of shape [Batch, Time, Channel, Height, Width]
         """
         if self.split_input:
             sat_channels = x[:, :, : self.sat_channels, :, :]

@@ -22,7 +22,7 @@ class DilatedResidualConv(nn.Module):
         Initialize the Convolution Block with channels, kernel size and the activation function.
 
         Args:
-        input_channels: int,
+        input_channels: Number of inputs channels
         output_channels: int = 384,
         dilation: int = 1,
         kernel_size: int = 3,
