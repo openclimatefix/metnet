@@ -39,7 +39,7 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         **kwargs,
     ):
         """
-        MetNet-2 extends MetNet-1 to use an even larger context area to predict up to 12 hours ahead.
+        MetNet-2 extends MetNet-1 to use a larger context area to predict up to 12 hours ahead.
 
         Paper: https://arxiv.org/pdf/2111.07470.pdf
 
@@ -47,9 +47,9 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         attention is dropped, and there is more dilated convolutions instead.
 
         Args:
-            image_encoder: string
-            input_channels: int
-            input_size: int
+            image_encoder: the chosen encoder for the image (string)
+            input_channels: the number of input channels (int)
+            input_size: specify the size of the input (int)
             lstm_channels: int
             encoder_channels: int
             upsampler_channels: int
@@ -63,8 +63,8 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
             output_channels: int
             kernel_size: int
             center_crop_size: int
-            forecast_steps: int
-            use_preprocessor: bool
+            forecast_steps: the number of predictions made (int)
+            use_preprocessor: specify whether to use MetNet processor (bool)
             **kwargs: dict[str, Unknown]
         """
         super(MetNet2, self).__init__()
