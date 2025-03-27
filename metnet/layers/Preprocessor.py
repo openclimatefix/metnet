@@ -18,7 +18,7 @@ class MetNetPreprocessor(nn.Module):
     ):
         """
         MetNet Preprocessor
-        
+
         Perform the MetNet preprocessing of mean pooling Sat channels, followed
         by concatenating the center crop and mean pool.
 
