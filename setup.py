@@ -10,7 +10,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="metnet",
-    version="4.1.17",
+    version="4.1.18",
     packages=find_packages(),
     url="https://github.com/openclimatefix/metnet",
     license="MIT License",
