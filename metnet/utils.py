@@ -1,10 +1,11 @@
-"""Utilities"""
+"""Utilities."""
+
 import numpy as np
 
 
 def mrms_normalize(a):
     """
-    Normalize, from MetNet-2 code release
+    Normalize, from MetNet-2 code release.
 
     [NaN, inf, -inf, -50, -.5, 0., .2, 1., 2., 10.])
     ->

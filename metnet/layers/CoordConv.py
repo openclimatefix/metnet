@@ -1,14 +1,26 @@
+"""The coordinate convolution class."""
+
 import torch
 import torch.nn as nn
 
 
 class AddCoords(nn.Module):
+    """argument input tensors with spatial information."""
+
     def __init__(self, with_r=False):
+        """
+        Initialize the add coordinates class.
+
+        Args:
+            with_r: bool
+        """
         super().__init__()
         self.with_r = with_r
 
     def forward(self, input_tensor):
         """
+        Add spatial information to the input tensor.
+
         Args:
             input_tensor: shape(batch, channel, x_dim, y_dim)
         """
@@ -27,7 +39,11 @@ class AddCoords(nn.Module):
         yy_channel = yy_channel.repeat(batch_size, 1, 1, 1).transpose(2, 3)
 
         ret = torch.cat(
-            [input_tensor, xx_channel.type_as(input_tensor), yy_channel.type_as(input_tensor)],
+            [
+                input_tensor,
+                xx_channel.type_as(input_tensor),
+                yy_channel.type_as(input_tensor),
+            ],
             dim=1,
         )
 
@@ -42,7 +58,18 @@ class AddCoords(nn.Module):
 
 
 class CoordConv(nn.Module):
+    """Coordinate convolution."""
+
     def __init__(self, in_channels, out_channels, with_r=False, **kwargs):
+        """
+        Initialize the coordinate convolution.
+
+        Args:
+            in_channels : int
+            out_channels : int,
+            with_r : boolean =False,
+            **kwargs : dict[str, Unknown]
+        """
         super().__init__()
         self.addcoords = AddCoords(with_r=with_r)
         in_size = in_channels + 2
@@ -51,6 +78,12 @@ class CoordConv(nn.Module):
         self.conv = nn.Conv2d(in_size, out_channels, **kwargs)
 
     def forward(self, x):
+        """
+        Apply a forward pass to the input.
+
+        Args:
+            x: tensor
+        """
         ret = self.addcoords(x)
         ret = self.conv(ret)
         return ret

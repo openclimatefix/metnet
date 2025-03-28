@@ -1,6 +1,5 @@
-"""
-MultiHeaded 2D Self Attention  Implementation
-"""
+"""MultiHeaded 2D Self Attention Implementation."""
+
 from typing import Type
 
 import torch
@@ -8,9 +7,7 @@ import torch.nn as nn
 
 
 class MultiheadSelfAttention2D(nn.Module):
-    """
-    Implementing multi-head self-attention for 2D images.
-    """
+    """Implementing multi-head self-attention for 2D images."""
 
     def __init__(
         self,
@@ -23,7 +20,7 @@ class MultiheadSelfAttention2D(nn.Module):
         rel_attn_bias: Type[nn.Module] = None,
     ) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -38,8 +35,8 @@ class MultiheadSelfAttention2D(nn.Module):
             attention dropout rate, by default 0.0
         proj_drop : float, optional
             post attention projection dropout rate, by default 0.0
-        use_normalised_qk : bool, by default True
-            Normalise queries and keys, (as in Metnet 3)
+        use_normalized_qk : bool, by default True
+            Normalize queries and keys, (as in MetNet 3)
         rel_attn_bias : Type[nn.Module], optional
             Use Relative Position bias, by default None
         """
@@ -64,7 +61,7 @@ class MultiheadSelfAttention2D(nn.Module):
         # Output projection
         self.out_proj = nn.Conv2d(attention_channels, in_channels, kernel_size=1)
 
-        # Normalised Keys and Queries as specified in Metnet 3
+        # Normalised Keys and Queries as specified in MetNet 3
         self.use_normalised_qk = use_normalised_qk
 
         self.attn_drop = nn.Dropout(p=attn_drop)
@@ -84,7 +81,6 @@ class MultiheadSelfAttention2D(nn.Module):
         torch.Tensor
             Output tensor after multi-head self-attention of shape (N, C, H, W).
         """
-
         N, C, H, W = X.size()
         # Compute Q, K, V
         Q = self.query(X)

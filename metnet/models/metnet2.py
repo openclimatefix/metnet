@@ -1,4 +1,5 @@
-"""MetNet-2 model for weather forecasting"""
+"""MetNet-2 model for weather forecasting."""
+
 from typing import List
 
 import torch
@@ -13,7 +14,7 @@ from metnet.layers.DilatedCondConv import DilatedResidualConv, UpsampleResidualC
 
 
 class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
-    """MetNet-2 model for weather forecasting"""
+    """MetNet-2 model for weather forecasting."""
 
     def __init__(
         self,
@@ -38,32 +39,33 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         **kwargs,
     ):
         """
-        MetNet-2 builds on MetNet-1 to use an even larger context area to predict up to 12 hours ahead.
+        MetNet-2 extends MetNet-1 to use a larger context area to predict up to 12 hours ahead.
 
         Paper: https://arxiv.org/pdf/2111.07470.pdf
 
-        The architecture of MetNet-2 differs from the original MetNet in terms of the axial attention is dropped, and there
-        is more dilated convolutions instead.
+        The architecture of MetNet-2 differs from the original MetNet in terms of the axial
+        attention is dropped, and there is more dilated convolutions instead.
 
         Args:
-            image_encoder:
-            input_channels:
-            input_size:
-            lstm_channels:
-            encoder_channels:
-            upsampler_channels:
-            lead_time_features:
-            upsample_method:
-            num_upsampler_blocks:
-            num_context_blocks:
-            num_input_timesteps:
-            encoder_dilations:
-            sat_channels:
-            output_channels:
-            kernel_size:
-            center_crop_size:
-            forecast_steps:
-            **kwargs:
+            image_encoder: the chosen encoder for the image (string)
+            input_channels: the number of input channels (int)
+            input_size: specify the size of the input (int)
+            lstm_channels: int
+            encoder_channels: int
+            upsampler_channels: int
+            lead_time_features: int
+            upsample_method: string
+            num_upsampler_blocks: int
+            num_context_blocks: int
+            num_input_timesteps: int
+            encoder_dilations: list[int]
+            sat_channels: int
+            output_channels: int
+            kernel_size: int
+            center_crop_size: int
+            forecast_steps: the number of predictions made (int)
+            use_preprocessor: specify whether to use MetNet processor (bool)
+            **kwargs: dict[str, Unknown]
         """
         super(MetNet2, self).__init__()
         config = locals()
@@ -127,7 +129,8 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
             num_layers=num_input_timesteps,
         )
         # Convolutional Residual Blocks going from dilation of 1 to 128 with 384 channels
-        # 3 stacks of 8 blocks form context aggregating part of arch -> only two shown in image, so have both
+        # 3 stacks of 8 blocks form context aggregating part of arch -> only two shown in
+        # image, so have both
         self.context_block_one = nn.ModuleList()
         self.context_block_one.append(
             DilatedResidualConv(
@@ -168,15 +171,18 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
         self.center_crop = torchvision.transforms.CenterCrop(size=center_crop_size)
 
         # Then tile 4x4 back to original size
-        # This seems like it would mean something like this, with two applications of a simple upsampling
+        # This seems like it would mean something like this, with two
+        # applications of a simple upsampling
         if upsample_method == "interp":
             self.upsample = nn.Upsample(scale_factor=4, mode="nearest")
             self.upsampler_changer = nn.Conv2d(
-                in_channels=encoder_channels, out_channels=upsampler_channels, kernel_size=(1, 1)
+                in_channels=encoder_channels,
+                out_channels=upsampler_channels,
+                kernel_size=(1, 1),
             )
         else:
-            # The paper though, under the architecture, has 2 upsample blocks with 512 channels, indicating it might be a
-            # transposed convolution instead?
+            # The paper though, under the architecture, has 2 upsample blocks with 512 channels,
+            # indicating it might be a transposed convolution instead?
             # 2 Upsample blocks with 512 channels
             self.upsample = nn.ModuleList(
                 UpsampleResidualConv(
@@ -242,15 +248,15 @@ class MetNet2(torch.nn.Module, PyTorchModelHubMixin):
 
     def forward(self, x: torch.Tensor, lead_time: int = 0):
         """
-        Compute for all forecast steps
+        Compute for all forecast steps.
 
         Args:
             x: Input tensor in [Batch, Time, Channel, Height, Width]
+            lead_time : int
 
         Returns:
             The output predictions for all future timesteps
         """
-
         # Compute all timesteps, probably can be parallelized
         x = self.image_encoder(x)
         # Compute scale and bias

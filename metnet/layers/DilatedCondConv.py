@@ -1,4 +1,5 @@
-"""Dilated Time Conditioned Residual Convolution Block for MetNet-2"""
+"""Dilated Time Conditioned Residual Convolution Block for MetNet-2."""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,6 +8,8 @@ from metnet.layers.LeadTimeConditioner import LeadTimeConditioner
 
 
 class DilatedResidualConv(nn.Module):
+    """Dilated Time Conditioned Residual Convolution Block."""
+
     def __init__(
         self,
         input_channels: int,
@@ -15,6 +18,16 @@ class DilatedResidualConv(nn.Module):
         kernel_size: int = 3,
         activation: nn.Module = nn.ReLU(),
     ):
+        """
+        Initialize the Convolution Block with channels, kernel size and the activation function.
+
+        Args:
+        input_channels: Number of inputs channels
+        output_channels: int = 384,
+        dilation: int = 1,
+        kernel_size: int = 3,
+        activation: nn.Module = nn.ReLU(),
+        """
         super().__init__()
         self.output_channels = output_channels
         self.dilated_conv_one = nn.Conv2d(
@@ -37,12 +50,22 @@ class DilatedResidualConv(nn.Module):
         # To make sure number of channels match, might need a 1x1 conv
         if input_channels != output_channels:
             self.channel_changer = nn.Conv2d(
-                in_channels=input_channels, out_channels=output_channels, kernel_size=(1, 1)
+                in_channels=input_channels,
+                out_channels=output_channels,
+                kernel_size=(1, 1),
             )
         else:
             self.channel_changer = nn.Identity()
 
-    def forward(self, x: torch.Tensor, beta, gamma) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, beta: torch.Tensor, gamma: torch.Tensor) -> torch.Tensor:
+        """
+        Apply a series of convolution steps to the tensor.
+
+        Args:
+        x: torch.Tensor,
+        beta : torch.Tensor,
+        gamma : torch.Tensor
+        """
         out = self.dilated_conv_one(x)
         out = F.layer_norm(out, out.size()[1:])
         out = self.lead_time_conditioner(out, beta, gamma)
@@ -56,6 +79,8 @@ class DilatedResidualConv(nn.Module):
 
 
 class UpsampleResidualConv(nn.Module):
+    """Upsample Residual Convolution."""
+
     def __init__(
         self,
         input_channels: int,
@@ -64,6 +89,16 @@ class UpsampleResidualConv(nn.Module):
         kernel_size: int = 3,
         activation: nn.Module = nn.ReLU(),
     ):
+        """
+        Initialize the Upsample Residual Convolution.
+
+        Args:
+        input_channels: int,
+        output_channels: int = 384,
+        dilation: int = 1,
+        kernel_size: int = 3,
+        activation: nn.Module = nn.ReLU(),
+        """
         super().__init__()
         self.output_channels = output_channels
         self.dilated_conv_one = nn.ConvTranspose2d(
@@ -84,12 +119,22 @@ class UpsampleResidualConv(nn.Module):
 
         if input_channels != output_channels:
             self.channel_changer = nn.Conv2d(
-                in_channels=input_channels, out_channels=output_channels, kernel_size=(1, 1)
+                in_channels=input_channels,
+                out_channels=output_channels,
+                kernel_size=(1, 1),
             )
         else:
             self.channel_changer = nn.Identity()
 
-    def forward(self, x: torch.Tensor, beta, gamma) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, beta: torch.Tensor, gamma: torch.Tensor) -> torch.Tensor:
+        """
+        Apply a series of convolution steps to the tensor.
+
+        Args:
+        x: torch.Tensor,
+        beta : torch.Tensor,
+        gamma : torch.Tensor
+        """
         out = self.dilated_conv_one(x)
         out = F.layer_norm(out, out.size()[1:])
         out = self.lead_time_conditioner(out, beta, gamma)

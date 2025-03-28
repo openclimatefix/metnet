@@ -1,13 +1,23 @@
+"""MetNet Photovoltaics model."""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from axial_attention import AxialAttention, AxialPositionalEmbedding
 from huggingface_hub import PyTorchModelHubMixin
 
-from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
+from metnet.layers import (
+    ConditionTime,
+    ConvGRU,
+    DownSampler,
+    MetNetPreprocessor,
+    TimeDistributed,
+)
 
 
 class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
+    """MetNet Photovoltaics model."""
+
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -31,6 +41,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         num_pv_embeddings: int = 30000,
         **kwargs,
     ):
+        """Initialize the MetNet Photovoltaics model."""
         super(MetNetPV, self).__init__()
         config = locals()
         config.pop("self")
@@ -82,7 +93,10 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         self.image_encoder = TimeDistributed(image_encoder)
         self.ct = ConditionTime(forecast_steps)
         self.temporal_enc = TemporalEncoder(
-            image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
+            image_encoder.output_channels,
+            hidden_dim,
+            ks=kernel_size,
+            n_layers=num_layers,
         )
         self.position_embedding = AxialPositionalEmbedding(
             dim=self.temporal_enc.out_channels, shape=(input_size // 4, input_size // 4)
@@ -133,6 +147,7 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
         self.fc1 = nn.Linear(in_features=total_features, out_features=fc_1_channels)
 
     def encode_timestep(self, x, pv_yield_history, fstep=1):
+        """Encode the passed in input."""
         # Preprocess Tensor
         x = self.preprocessor(x)
 
@@ -149,7 +164,8 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
     def forward(
         self, imgs: torch.Tensor, pv_yield_history, pv_system_id, lead_time: int = 0
     ) -> torch.Tensor:
-        """It takes a rank 5 tensor
+        """Take a rank 5 tensor.
+
         - imgs [bs, seq_len, channels, h, w]
         """
         x_i = self.encode_timestep(imgs, pv_yield_history, lead_time)
@@ -175,17 +191,21 @@ class MetNetPV(torch.nn.Module, PyTorchModelHubMixin):
 
 
 class TemporalEncoder(nn.Module):
+    """Encodes temporal features."""
+
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
+        """Take a set of channels and layers."""
         super().__init__()
         self.out_channels = out_channels
         self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
 
     def forward(self, x):
+        """Perform a forward pass on the recurrent neural network."""
         x, h = self.rnn(x)
         return (x, h[-1])
 
 
 def feat2image(x, target_size=(128, 128)):
-    "This idea comes from MetNet"
+    """Idea comes from MetNet."""
     x = x.transpose(1, 2)
     return x.unsqueeze(-1).unsqueeze(-1) * x.new_ones(1, 1, 1, *target_size)

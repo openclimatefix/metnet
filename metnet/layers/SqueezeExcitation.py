@@ -1,6 +1,5 @@
-"""
-Squeeze-and-Excitation net implementation
-"""
+"""Squeeze-and-Excitation net implementation."""
+
 from typing import Type
 
 import torch
@@ -8,9 +7,7 @@ from torch import nn
 
 
 class SqueezeExcite(nn.Module):
-    """
-    Squeeze-and-Excitation net
-    """
+    """Squeeze-and-Excitation net."""
 
     def __init__(
         self,
@@ -20,7 +17,7 @@ class SqueezeExcite(nn.Module):
         gate_layer: Type[nn.Module] = nn.Sigmoid,
     ):
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -44,7 +41,7 @@ class SqueezeExcite(nn.Module):
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """
-        Forward Pass
+        Forward Pass.
 
         Parameters
         ----------

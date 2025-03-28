@@ -1,12 +1,22 @@
+"""MetNet model for weather forecasting."""
+
 import torch
 import torch.nn as nn
 from axial_attention import AxialAttention, AxialPositionalEmbedding
 from huggingface_hub import PyTorchModelHubMixin
 
-from metnet.layers import ConditionTime, ConvGRU, DownSampler, MetNetPreprocessor, TimeDistributed
+from metnet.layers import (
+    ConditionTime,
+    ConvGRU,
+    DownSampler,
+    MetNetPreprocessor,
+    TimeDistributed,
+)
 
 
 class MetNet(torch.nn.Module, PyTorchModelHubMixin):
+    """MetNet model for weather forecasting."""
+
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -24,6 +34,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         use_preprocessor: bool = True,
         **kwargs,
     ):
+        """Initialize the met net model."""
         super(MetNet, self).__init__()
         config = locals()
         config.pop("self")
@@ -69,7 +80,10 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         self.image_encoder = TimeDistributed(image_encoder)
         self.ct = ConditionTime(forecast_steps)
         self.temporal_enc = TemporalEncoder(
-            image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
+            image_encoder.output_channels,
+            hidden_dim,
+            ks=kernel_size,
+            n_layers=num_layers,
         )
         self.position_embedding = AxialPositionalEmbedding(
             dim=self.temporal_enc.out_channels, shape=(input_size // 4, input_size // 4)
@@ -84,6 +98,7 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         self.head = nn.Conv2d(hidden_dim, output_channels, kernel_size=(1, 1))  # Reduces to mask
 
     def encode_timestep(self, x, fstep=1):
+        """Encode the passed in input."""
         # Preprocess Tensor
         x = self.preprocessor(x)
 
@@ -98,7 +113,8 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
         return self.temporal_agg(self.position_embedding(state))
 
     def forward(self, imgs: torch.Tensor, lead_time: int = 0) -> torch.Tensor:
-        """It takes a rank 5 tensor
+        """Take a rank 5 tensor.
+
         - imgs [bs, seq_len, channels, h, w]
         """
         x_i = self.encode_timestep(imgs, lead_time)
@@ -107,17 +123,21 @@ class MetNet(torch.nn.Module, PyTorchModelHubMixin):
 
 
 class TemporalEncoder(nn.Module):
+    """Encodes temporal features."""
+
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
+        """Take a set of channels and layers."""
         super().__init__()
         self.out_channels = out_channels
         self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
 
     def forward(self, x):
+        """Perform a forward pass on the recurrent neural network."""
         x, h = self.rnn(x)
         return (x, h[-1])
 
 
 def feat2image(x, target_size=(128, 128)):
-    "This idea comes from MetNet"
+    """Idea comes from MetNet."""
     x = x.transpose(1, 2)
     return x.unsqueeze(-1).unsqueeze(-1) * x.new_ones(1, 1, 1, *target_size)

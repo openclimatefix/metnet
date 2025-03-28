@@ -1,6 +1,5 @@
-"""
-Implementation of Relative Position Bias
-"""
+"""Implementation of Relative Position Bias."""
+
 from typing import Tuple
 
 import torch
@@ -9,14 +8,14 @@ import torch.nn as nn
 
 class RelativePositionBias(nn.Module):
     """
-    Relative Postition Bias
+    Relative Position Bias.
 
     Inspired by timm's maxxvit implementation
     """
 
     def __init__(self, attn_size: Tuple[int, int], num_heads: int) -> None:
         """
-        Constructor Method
+        Class Constructor Method.
 
         Parameters
         ----------
@@ -46,7 +45,7 @@ class RelativePositionBias(nn.Module):
 
     def get_relative_position_index(self, win_h: int, win_w: int) -> torch.Tensor:
         """
-        Function to generate pair-wise relative position index for each token inside the window.
+        Generate pair-wise relative position index for each token inside the window.
 
         Taken from Timms Swin V1 implementation.
 
@@ -74,7 +73,7 @@ class RelativePositionBias(nn.Module):
 
     def _get_relative_positional_bias(self) -> torch.Tensor:
         """
-        Returns the relative positional bias.
+        Return the relative positional bias.
 
         Returns:
         -------
@@ -89,7 +88,7 @@ class RelativePositionBias(nn.Module):
 
     def forward(self) -> torch.Tensor:
         """
-        Forward Method
+        Forward Method.
 
         Returns:
         -------

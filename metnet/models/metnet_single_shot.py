@@ -1,3 +1,5 @@
+"""MetNet single shot model."""
+
 import torch
 import torch.nn as nn
 from axial_attention import AxialAttention, AxialPositionalEmbedding
@@ -7,6 +9,8 @@ from metnet.layers import ConvGRU, DownSampler, MetNetPreprocessor, TimeDistribu
 
 
 class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
+    """MetNet single shot model."""
+
     def __init__(
         self,
         image_encoder: str = "downsampler",
@@ -24,6 +28,7 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
         use_preprocessor: bool = True,
         **kwargs,
     ):
+        """Initialize the met net single shot."""
         super(MetNetSingleShot, self).__init__()
         config = locals()
         config.pop("self")
@@ -68,7 +73,10 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
             raise ValueError(f"Image_encoder {image_encoder} is not recognized")
         self.image_encoder = TimeDistributed(image_encoder)
         self.temporal_enc = TemporalEncoder(
-            image_encoder.output_channels, hidden_dim, ks=kernel_size, n_layers=num_layers
+            image_encoder.output_channels,
+            hidden_dim,
+            ks=kernel_size,
+            n_layers=num_layers,
         )
         self.position_embedding = AxialPositionalEmbedding(
             dim=self.temporal_enc.out_channels, shape=(input_size // 4, input_size // 4)
@@ -85,6 +93,7 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
         )  # Reduces to forecast steps
 
     def encode_timestep(self, x):
+        """Encode the passed in input."""
         # Preprocess Tensor
         x = self.preprocessor(x)
 
@@ -96,7 +105,8 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
         return self.temporal_agg(self.position_embedding(state))
 
     def forward(self, imgs: torch.Tensor) -> torch.Tensor:
-        """It takes a rank 5 tensor
+        """Take a rank 5 tensor.
+
         - imgs [bs, seq_len, channels, h, w]
         """
         x_i = self.encode_timestep(imgs)
@@ -105,17 +115,21 @@ class MetNetSingleShot(torch.nn.Module, PyTorchModelHubMixin):
 
 
 class TemporalEncoder(nn.Module):
+    """encodes temporal features."""
+
     def __init__(self, in_channels, out_channels=384, ks=3, n_layers=1):
+        """Take a set of channels and layers."""
         super().__init__()
         self.out_channels = out_channels
         self.rnn = ConvGRU(in_channels, out_channels, (ks, ks), n_layers, batch_first=True)
 
     def forward(self, x):
+        """Perform a forward pass on the recurrent neural network."""
         x, h = self.rnn(x)
         return (x, h[-1])
 
 
 def feat2image(x, target_size=(128, 128)):
-    "This idea comes from MetNet"
+    """Idea comes from MetNet."""
     x = x.transpose(1, 2)
     return x.unsqueeze(-1).unsqueeze(-1) * x.new_ones(1, 1, 1, *target_size)
