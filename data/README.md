@@ -13,7 +13,7 @@ MetNet Global uses imagery from multiple geostationary satellites to provide glo
 Data is sourced from [source.coop/bkr/geo](https://source.coop/bkr/geo):
 
 - **GOES-East** (GOES-16/17) - Americas, Atlantic
-- **GOES-West** (GOES-18) - Eastern Pacific, Western Americas  
+- **GOES-West** (GOES-18) - Eastern Pacific, Western Americas
 - **Himawari-9** - Asia-Pacific, Indian Ocean
 - **GK-2A** - East Asia (Korea, Japan, China)
 - **Meteosat** (multiple) - Europe, Africa, Indian Ocean

@@ -6,25 +6,25 @@
 
 1. **Target projection: Equirectangular** ✅ IMPLEMENTED
    - Line 518: `target_proj_dict = {'proj': 'longlat', 'datum': 'WGS84'}`
-   
+
 2. **Overlap handling: Blending by azimuth angle** ✅ IMPLEMENTED
    - Lines 622-660: `_calculate_azimuth_weights()`
    - Uses haversine formula for great circle distance
    - Inverse square weighting based on angular distance from nadir
    - 70° viewing angle cutoff
    - Proper normalization to [0,1]
-   
+
 3. **Reprojection tool: pyresample** ✅ IMPLEMENTED
    - Lines 480-560: `_reproject_geostationary()`
    - Uses `pyresample.geometry.AreaDefinition`
    - Uses `kd_tree.resample_nearest()` for fast nearest-neighbor resampling
    - Proper geostationary→equirectangular transformation
-   
+
 4. **All 18 bands from paper** ✅ IMPLEMENTED
    - Lines 72-96: `BAND_MAPPING` with all 18 spectral channels
    - Includes visible, NIR, and IR bands
    - Alternative naming conventions for cross-satellite compatibility
-   
+
 5. **All 7 satellites from paper** ✅ IMPLEMENTED
    - Lines 19-69: `SATELLITE_CONFIG` with:
      - GOES-East (GOES-16/19)
@@ -87,12 +87,12 @@ All 7 satellites with accurate orbital parameters:
 ## 🎯 Ready for Draft PR
 
 ### What Works:
-✅ Data access from all 7 satellites (via Icechunk)  
-✅ Proper geostationary→equirectangular reprojection  
-✅ Azimuth-based blending as per paper  
-✅ All 18 band mappings  
-✅ NetCDF output generation  
-✅ Comprehensive error handling  
+✅ Data access from all 7 satellites (via Icechunk)
+✅ Proper geostationary→equirectangular reprojection
+✅ Azimuth-based blending as per paper
+✅ All 18 band mappings
+✅ NetCDF output generation
+✅ Comprehensive error handling
 
 ### What's Tested:
 - ✅ 2 satellites (GOES-East, GOES-West) with C02 band
