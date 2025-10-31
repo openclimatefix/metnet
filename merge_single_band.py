@@ -18,7 +18,7 @@ def open_icechunk_store(prefix: str):
     storage = icechunk.s3_storage(
         bucket="bkr",
         prefix=prefix,
-        region="us-east-1",
+        region="us-west-2",
         endpoint_url="https://data.source.coop",
         anonymous=True,
         force_path_style=True,
@@ -31,7 +31,7 @@ def open_icechunk_store(prefix: str):
 def get_band_data(ds, band_name: str, time_idx: int = 0):
     """Extract a single timestep of a band."""
     if band_name not in ds.data_vars:
-        return None
+        return raise ValueError(f'{band_name} not available in {ds.data_vars=}')
 
     # Get single time slice
     band = ds[band_name].isel(time=time_idx)
@@ -39,7 +39,7 @@ def get_band_data(ds, band_name: str, time_idx: int = 0):
     return band
 
 
-def merge_086um_band(time_idx: int = -1):
+def merge_086um_band(time_idx: pd.Timestamp = pd.Timestamp.now()):
     """
     Merge 0.86 µm band from GK2A and GOES-East satellites.
 
@@ -75,7 +75,7 @@ def merge_086um_band(time_idx: int = -1):
         )
     else:
         # Shapes don't match, use first satellite's grid
-        merged = band_gk2a
+        raise ValueError(f'Shapes of inputs do not match, are they the same resolution? {band_gk2a.shape=}, {band_goes.shape=}')
 
     metadata = {
         "wavelength": "0.86 µm",
