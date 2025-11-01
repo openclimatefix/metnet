@@ -1,4 +1,4 @@
-# MetNet and MetNet-2
+# MetNet Model Implementations
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-7-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
@@ -6,6 +6,10 @@
 PyTorch Implementation of Google Research's MetNet for short term weather forecasting (https://arxiv.org/abs/2003.12140), inspired from https://github.com/tcapelle/metnet_pytorch/tree/master/metnet_pytorch
 
 MetNet-2 (https://arxiv.org/pdf/2111.07470.pdf) is a further extension of MetNet that takes in a larger context image to predict up to 12 hours ahead, and is also implemented in PyTorch here.
+
+MetNet-3 (https://arxiv.org/abs/2306.06079) extends it even further, incorporating more observations and data. There will be an implementation here eventually, but one isn't ready yet.
+
+MetNet Global (https://arxiv.org/abs/2510.13050) makes this a global precipitation forecasting model, and seems to be more similar to MetNet-2's architecture.
 
 ## Installation
 
