@@ -9,11 +9,11 @@ TODO: Add proper reprojection and azimuth-based blending.
 """
 
 from datetime import datetime
+from typing import Mapping, Optional, Union
 
 import icechunk
 import numpy as np
 import xarray as xr
-from typing import Mapping, Optional, Union
 
 
 def open_icechunk_store(prefix: str):
@@ -133,6 +133,4 @@ def merge_086um_band(
 if __name__ == "__main__":
     merged_data, metadata = merge_086um_band(time=None)
     print(f"Merged {metadata['wavelength']} from {metadata['satellites']}")
-    print(
-        f"Shape: {merged_data.shape}, Valid pixels: {np.sum(~np.isnan(merged_data.values))}"
-    )
+    print(f"Shape: {merged_data.shape}, Valid pixels: {np.sum(~np.isnan(merged_data.values))}")
