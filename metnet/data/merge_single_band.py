@@ -13,10 +13,11 @@ from datetime import datetime
 import icechunk
 import numpy as np
 import xarray as xr
+from typing import Mapping, Optional
 
 
 def open_icechunk_store(prefix: str):
-    """Open an icechunk store from Source Cooperative."""
+    """Open an icechunk store (default points to Source Cooperative)."""
     storage = icechunk.s3_storage(
         bucket="bkr",
         prefix=prefix,
@@ -41,49 +42,88 @@ def get_band_data(ds, band_name: str, time_idx: int = 0):
     return band
 
 
-def merge_086um_band(time: datetime | str | None = None):
+def merge_086um(
+    da_gk2a: xr.DataArray,
+    da_goes_east: xr.DataArray,
+    method: str = "mean",
+) -> xr.DataArray:
+    """Merge two 0.86 µm reflectance DataArrays on a common grid.
+
+    This is *pure* (no I/O), so it can be unit-tested in isolation.
+
+    Behaviour:
+      - aligns by coords (outer join)
+      - if both pixels present → combine (default: mean)
+      - if only one present → use that value
+    """
+
+    # Align to a common set of coords (outer join preserves union)
+    a, b = xr.align(da_gk2a, da_goes_east, join="outer")
+
+    if method == "mean":
+        both = a.notnull() & b.notnull()
+        merged = xr.where(
+            both,
+            0.5 * (a + b),
+            xr.where(a.notnull(), a, b),
+        )
+    else:
+        # Fallback: prefer GK2A where available, else GOES-East
+        merged = a.combine_first(b)
+
+    merged = merged.copy()
+    merged.name = "reflectance_086um"
+    return merged
+
+
+def merge_086um_band(
+    time: datetime | str | None = None,
+    *,
+    stores: Optional[Mapping[str, str]] = None,
+    time_index: Optional[int] = None,
+    **store_kwargs,
+):
     """
     Merge 0.86 µm band from GK2A and GOES-East satellites.
 
     Band matching:
-    - GK2A VI008: 0.863 µm
-    - GOES-East C03: 0.865 µm
+      - GK2A VI008 ~ 0.863 µm
+      - GOES-East C03 ~ 0.865 µm
 
     Args:
-        time: Timestamp to extract. If None, uses most recent time.
+      time: timestamp to select (if None and time_index is None, uses latest available)
+      stores: mapping of satellite→store prefix. Defaults to Source Coop demo stores.
+              Example: {"gk2a": "geo/gk2a_1000m.icechunk", "goes_east": "geo/goes-east_1000m.icechunk"}
+      time_index: integer index along time dim (e.g., 0, -1). If provided, takes precedence over `time`.
+      **store_kwargs: forwarded to `open_icechunk_store` (e.g., force_path_style=True, anonymous=True, endpoint_url=...)
 
     Returns:
-        Tuple of (merged_data, metadata)
+      (merged_dataarray, metadata_dict)
     """
 
-    # Load GK2A data
-    ds_gk2a = open_icechunk_store("geo/gk2a_1000m.icechunk")
-    if time is None:
-        band_gk2a = ds_gk2a["VI008"].isel(time=-1)
-    else:
-        band_gk2a = ds_gk2a["VI008"].sel(time=time, method="nearest")
+    if stores is None:
+        stores = {
+            "gk2a": "geo/gk2a_1000m.icechunk",
+            "goes_east": "geo/goes-east_1000m.icechunk",
+        }
 
-    # Load GOES-East data
-    ds_goes = open_icechunk_store("geo/goes-east_1000m.icechunk")
-    if time is None:
-        band_goes = ds_goes["C03"].isel(time=-1)
-    else:
-        band_goes = ds_goes["C03"].sel(time=time, method="nearest")
+    # Open both stores (allow caller to override S3/endpoint kwargs)
+    ds_gk2a = open_icechunk_store(stores["gk2a"])  # kwargs baked into helper
+    ds_goes = open_icechunk_store(stores["goes_east"])  # same here
 
-    # Simple merge: average where both have data, otherwise use available
-    if band_gk2a.shape == band_goes.shape:
-        merged = xr.where(
-            np.isnan(band_gk2a) & np.isnan(band_goes),
-            np.nan,
-            xr.where(
-                np.isnan(band_gk2a),
-                band_goes,
-                xr.where(np.isnan(band_goes), band_gk2a, (band_gk2a + band_goes) / 2),
-            ),
-        )
+    # Select a single timestep for each
+    if time_index is not None:
+        band_gk2a = ds_gk2a["VI008"].isel(time=time_index)
+        band_goes = ds_goes["C03"].isel(time=time_index)
     else:
-        # Shapes don't match, use first satellite's grid
-        merged = band_gk2a
+        if time is None:
+            band_gk2a = ds_gk2a["VI008"].isel(time=-1)
+            band_goes = ds_goes["C03"].isel(time=-1)
+        else:
+            band_gk2a = ds_gk2a["VI008"].sel(time=time, method="nearest")
+            band_goes = ds_goes["C03"].sel(time=time, method="nearest")
+
+    merged = merge_086um(band_gk2a, band_goes, method="mean")
 
     metadata = {
         "wavelength": "0.86 µm",
@@ -98,4 +138,6 @@ def merge_086um_band(time: datetime | str | None = None):
 if __name__ == "__main__":
     merged_data, metadata = merge_086um_band(time=None)
     print(f"Merged {metadata['wavelength']} from {metadata['satellites']}")
-    print(f"Shape: {merged_data.shape}, Valid pixels: {np.sum(~np.isnan(merged_data.values))}")
+    print(
+        f"Shape: {merged_data.shape}, Valid pixels: {np.sum(~np.isnan(merged_data.values))}"
+    )
