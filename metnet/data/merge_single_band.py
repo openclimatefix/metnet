@@ -97,8 +97,14 @@ def merge_086um_band(
 
     Args:
       time: timestamp to select (if None, uses latest available)
-      stores: mapping of satellite→store prefix. Defaults to Source Coop demo stores.
-              Example: {"gk2a": "geo/gk2a_1000m.icechunk", "goes_east": "geo/goes-east_1000m.icechunk"}
+      stores: mapping of satellite→store prefix. Defaults to Source Coop demo
+        stores.
+
+    Example:
+          {
+            "gk2a": "geo/gk2a_1000m.icechunk",
+            "goes_east": "geo/goes-east_1000m.icechunk",
+          }
 
     Returns:
       (merged_dataarray, metadata_dict)
@@ -133,4 +139,5 @@ def merge_086um_band(
 if __name__ == "__main__":
     merged_data, metadata = merge_086um_band(time=None)
     print(f"Merged {metadata['wavelength']} from {metadata['satellites']}")
-    print(f"Shape: {merged_data.shape}, Valid pixels: {np.sum(~np.isnan(merged_data.values))}")
+    valid_pixels = int(np.sum(~np.isnan(merged_data.values)))
+    print(f"Shape: {merged_data.shape}, " f"Valid pixels: {valid_pixels}")
