@@ -13,7 +13,7 @@ from datetime import datetime
 import icechunk
 import numpy as np
 import xarray as xr
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Union
 
 
 def open_icechunk_store(prefix: str):
@@ -31,15 +31,24 @@ def open_icechunk_store(prefix: str):
     return xr.open_zarr(session.store, consolidated=False)
 
 
-def get_band_data(ds, band_name: str, time_idx: int = 0):
-    """Extract a single timestep of a band."""
+
+
+def get_band_data(
+    ds,
+    band_name: str,
+    time: Optional[Union[datetime, str]] = None,
+):
+    """Return one timestep of a band.
+
+    If `time` is None -> use most recent. If str/datetime -> nearest match.
+    """
     if band_name not in ds.data_vars:
         return None
 
-    # Get single time slice
-    band = ds[band_name].isel(time=time_idx)
-
-    return band
+    var = ds[band_name]
+    if time is None:
+        return var.isel(time=-1)
+    return var.sel(time=time, method="nearest")
 
 
 def merge_086um(
@@ -80,8 +89,6 @@ def merge_086um_band(
     time: datetime | str | None = None,
     *,
     stores: Optional[Mapping[str, str]] = None,
-    time_index: Optional[int] = None,
-    **store_kwargs,
 ):
     """
     Merge 0.86 µm band from GK2A and GOES-East satellites.
@@ -91,11 +98,9 @@ def merge_086um_band(
       - GOES-East C03 ~ 0.865 µm
 
     Args:
-      time: timestamp to select (if None and time_index is None, uses latest available)
+      time: timestamp to select (if None, uses latest available)
       stores: mapping of satellite→store prefix. Defaults to Source Coop demo stores.
               Example: {"gk2a": "geo/gk2a_1000m.icechunk", "goes_east": "geo/goes-east_1000m.icechunk"}
-      time_index: integer index along time dim (e.g., 0, -1). If provided, takes precedence over `time`.
-      **store_kwargs: forwarded to `open_icechunk_store` (e.g., force_path_style=True, anonymous=True, endpoint_url=...)
 
     Returns:
       (merged_dataarray, metadata_dict)
@@ -111,17 +116,9 @@ def merge_086um_band(
     ds_gk2a = open_icechunk_store(stores["gk2a"])  # kwargs baked into helper
     ds_goes = open_icechunk_store(stores["goes_east"])  # same here
 
-    # Select a single timestep for each
-    if time_index is not None:
-        band_gk2a = ds_gk2a["VI008"].isel(time=time_index)
-        band_goes = ds_goes["C03"].isel(time=time_index)
-    else:
-        if time is None:
-            band_gk2a = ds_gk2a["VI008"].isel(time=-1)
-            band_goes = ds_goes["C03"].isel(time=-1)
-        else:
-            band_gk2a = ds_gk2a["VI008"].sel(time=time, method="nearest")
-            band_goes = ds_goes["C03"].sel(time=time, method="nearest")
+    # Select a single timestep for each using helper (prefers latest if time is None)
+    band_gk2a = get_band_data(ds_gk2a, "VI008", time)
+    band_goes = get_band_data(ds_goes, "C03", time)
 
     merged = merge_086um(band_gk2a, band_goes, method="mean")
 
