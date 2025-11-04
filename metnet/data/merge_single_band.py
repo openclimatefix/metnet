@@ -8,6 +8,8 @@ the MetNet Global paper. This is a minimal proof-of-concept focusing on the
 TODO: Add proper reprojection and azimuth-based blending.
 """
 
+from datetime import datetime
+
 import icechunk
 import numpy as np
 import xarray as xr
@@ -18,7 +20,7 @@ def open_icechunk_store(prefix: str):
     storage = icechunk.s3_storage(
         bucket="bkr",
         prefix=prefix,
-        region="us-west-2",
+        region="us-east-1",
         endpoint_url="https://data.source.coop",
         anonymous=True,
         force_path_style=True,
@@ -31,7 +33,7 @@ def open_icechunk_store(prefix: str):
 def get_band_data(ds, band_name: str, time_idx: int = 0):
     """Extract a single timestep of a band."""
     if band_name not in ds.data_vars:
-        return raise ValueError(f'{band_name} not available in {ds.data_vars=}')
+        return None
 
     # Get single time slice
     band = ds[band_name].isel(time=time_idx)
@@ -39,7 +41,7 @@ def get_band_data(ds, band_name: str, time_idx: int = 0):
     return band
 
 
-def merge_086um_band(time_idx: pd.Timestamp = pd.Timestamp.now()):
+def merge_086um_band(time: datetime | str | None = None):
     """
     Merge 0.86 µm band from GK2A and GOES-East satellites.
 
@@ -48,7 +50,7 @@ def merge_086um_band(time_idx: pd.Timestamp = pd.Timestamp.now()):
     - GOES-East C03: 0.865 µm
 
     Args:
-        time_idx: Time index to extract (-1 for most recent)
+        time: Timestamp to extract. If None, uses most recent time.
 
     Returns:
         Tuple of (merged_data, metadata)
@@ -56,11 +58,17 @@ def merge_086um_band(time_idx: pd.Timestamp = pd.Timestamp.now()):
 
     # Load GK2A data
     ds_gk2a = open_icechunk_store("geo/gk2a_1000m.icechunk")
-    band_gk2a = ds_gk2a["VI008"].isel(time=time_idx)
+    if time is None:
+        band_gk2a = ds_gk2a["VI008"].isel(time=-1)
+    else:
+        band_gk2a = ds_gk2a["VI008"].sel(time=time, method="nearest")
 
     # Load GOES-East data
     ds_goes = open_icechunk_store("geo/goes-east_1000m.icechunk")
-    band_goes = ds_goes["C03"].isel(time=time_idx)
+    if time is None:
+        band_goes = ds_goes["C03"].isel(time=-1)
+    else:
+        band_goes = ds_goes["C03"].sel(time=time, method="nearest")
 
     # Simple merge: average where both have data, otherwise use available
     if band_gk2a.shape == band_goes.shape:
@@ -75,7 +83,7 @@ def merge_086um_band(time_idx: pd.Timestamp = pd.Timestamp.now()):
         )
     else:
         # Shapes don't match, use first satellite's grid
-        raise ValueError(f'Shapes of inputs do not match, are they the same resolution? {band_gk2a.shape=}, {band_goes.shape=}')
+        merged = band_gk2a
 
     metadata = {
         "wavelength": "0.86 µm",
@@ -88,6 +96,6 @@ def merge_086um_band(time_idx: pd.Timestamp = pd.Timestamp.now()):
 
 
 if __name__ == "__main__":
-    merged_data, metadata = merge_086um_band(time_idx=-1)
+    merged_data, metadata = merge_086um_band(time=None)
     print(f"Merged {metadata['wavelength']} from {metadata['satellites']}")
     print(f"Shape: {merged_data.shape}, Valid pixels: {np.sum(~np.isnan(merged_data.values))}")
