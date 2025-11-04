@@ -31,8 +31,6 @@ def open_icechunk_store(prefix: str):
     return xr.open_zarr(session.store, consolidated=False)
 
 
-
-
 def get_band_data(
     ds,
     band_name: str,

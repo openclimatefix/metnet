@@ -1,13 +1,17 @@
-import os
 import sys
+from pathlib import Path
 
-# ensure project root is on sys.path so metnet imports work without editable install
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
 import numpy as np
 import xarray as xr
-from metnet.data.merge_single_band import merge_086um
+
+# Try import normally first (works when package installed or editable)
+try:
+    from metnet.data.merge_single_band import merge_086um
+except ModuleNotFoundError:
+    ROOT = str(Path(__file__).resolve().parents[1])
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
+    from metnet.data.merge_single_band import merge_086um
 
 
 def test_merge_086um_mean():
