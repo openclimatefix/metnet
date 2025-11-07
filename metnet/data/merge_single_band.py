@@ -36,9 +36,16 @@ def get_band_data(
     band_name: str,
     time: Optional[Union[datetime, str]] = None,
 ):
-    """Return one timestep of a band.
+    """
+    Return one timestep of a band.
 
-    If `time` is None -> use most recent. If str/datetime -> nearest match.
+    Behaviour:
+      - If `time` is None: return the most recent timestep.
+      - If `time` is str/datetime: require an exact match on the `time` coordinate.
+
+    Notes:
+      - Returns `None` if `band_name` is not present in `ds`.
+      - Raises `KeyError` if `time` is provided and the exact timestamp is not found.
     """
     if band_name not in ds.data_vars:
         return None
@@ -46,40 +53,48 @@ def get_band_data(
     var = ds[band_name]
     if time is None:
         return var.isel(time=-1)
-    return var.sel(time=time, method="nearest")
+    return var.sel(time=time)
 
 
-def merge_086um(
-    da_gk2a: xr.DataArray,
-    da_goes_east: xr.DataArray,
+def merge_two_arrays(
+    satellite_one: xr.DataArray,
+    satellite_two: xr.DataArray,
     method: str = "mean",
+    *,
+    name: Optional[str] = None,
 ) -> xr.DataArray:
-    """Merge two 0.86 µm reflectance DataArrays on a common grid.
+    """
+    Merge two DataArrays on a common grid by aligning their coordinates.
 
-    This is *pure* (no I/O), so it can be unit-tested in isolation.
+    This is pure (no I/O), so it can be unit-tested in isolation.
 
     Behaviour:
-      - aligns by coords (outer join)
+      - aligns both inputs by coords (outer join preserves union of grids)
       - if both pixels present → combine (default: mean)
-      - if only one present → use that value
+      - if only one present → use that single value
+
+    Args:
+      satellite_one: first DataArray
+      satellite_two: second DataArray
+      method: merge strategy ("mean" or "first")
+      name: name to assign to the merged DataArray (optional)
+
+    Returns:
+      A new DataArray containing merged values.
     """
 
     # Align to a common set of coords (outer join preserves union)
-    a, b = xr.align(da_gk2a, da_goes_east, join="outer")
+    a, b = xr.align(satellite_one, satellite_two, join="outer")
 
     if method == "mean":
         both = a.notnull() & b.notnull()
-        merged = xr.where(
-            both,
-            0.5 * (a + b),
-            xr.where(a.notnull(), a, b),
-        )
+        merged = xr.where(both, 0.5 * (a + b), xr.where(a.notnull(), a, b))
     else:
-        # Fallback: prefer GK2A where available, else GOES-East
+        # Fallback: prefer first where available, else second
         merged = a.combine_first(b)
 
     merged = merged.copy()
-    merged.name = "reflectance_086um"
+    merged.name = name or satellite_one.name or satellite_two.name or "merged"
     return merged
 
 
@@ -88,6 +103,7 @@ def merge_086um_band(
     *,
     stores: Optional[Mapping[str, str]] = None,
 ):
+    
     """
     Merge 0.86 µm band from GK2A and GOES-East satellites.
 
@@ -124,7 +140,7 @@ def merge_086um_band(
     band_gk2a = get_band_data(ds_gk2a, "VI008", time)
     band_goes = get_band_data(ds_goes, "C03", time)
 
-    merged = merge_086um(band_gk2a, band_goes, method="mean")
+    merged = merge_two_arrays(band_gk2a, band_goes, method="mean", name="reflectance_086um")
 
     metadata = {
         "wavelength": "0.86 µm",
