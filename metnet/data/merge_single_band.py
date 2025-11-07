@@ -103,7 +103,6 @@ def merge_086um_band(
     *,
     stores: Optional[Mapping[str, str]] = None,
 ):
-    
     """
     Merge 0.86 µm band from GK2A and GOES-East satellites.
 
