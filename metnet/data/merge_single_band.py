@@ -21,7 +21,7 @@ def open_icechunk_store(prefix: str):
     storage = icechunk.s3_storage(
         bucket="bkr",
         prefix=prefix,
-        region="us-east-1",
+        region="us-west-2",
         endpoint_url="https://data.source.coop",
         anonymous=True,
         force_path_style=True,
