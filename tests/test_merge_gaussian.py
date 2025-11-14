@@ -66,6 +66,11 @@ def test_merge_two_arrays_gaussian_basic():
     b = xr.DataArray(np.array([[30.0, 40.0]]), dims=["y", "x"])
     lat, lon = make_lat_lon_grid(shape=(1, 2))
 
+    subpoints = {
+        "gk2a": (0.0, 128.2),
+        "goes_east": (0.0, -75.2),
+    }
+
     out = merge_two_arrays(
         a,
         b,
@@ -75,6 +80,7 @@ def test_merge_two_arrays_gaussian_basic():
         sat_name_a="gk2a",
         sat_name_b="goes_east",
         sigma_deg=20.0,
+        subpoints=subpoints,
     )
 
     # Outputs should fall between min(a,b) and max(a,b)
