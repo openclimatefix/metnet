@@ -14,7 +14,6 @@ from typing import Dict, List, Tuple
 import numpy as np
 import xarray as xr
 
-
 # ---------------------------------------------------------------------
 # Geometry utilities
 # ---------------------------------------------------------------------
