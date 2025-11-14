@@ -15,7 +15,7 @@ import icechunk
 import numpy as np
 import xarray as xr
 
-from .geoweight import gaussian_merge_multi
+from metnet.data.geoweight import gaussian_merge_multi
 
 
 def open_icechunk_store(prefix: str):
