@@ -32,6 +32,7 @@ SATELLITE_SUBPOINTS: Dict[str, Tuple[float, float]] = {
 def haversine_rad(lat1, lon1, lat2, lon2):
     """
     Great-circle angular distance (RADIANS) between points in degrees.
+
     Supports scalars or numpy arrays.
     """
     φ1 = np.deg2rad(lat1)

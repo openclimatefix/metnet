@@ -94,6 +94,11 @@ def merge_two_arrays(
       satellite_two: second DataArray
       method: merge strategy ("mean", "gaussian", or "first")
       name: optional name for the merged DataArray
+      lat: optional latitude grid (xr.DataArray) required for gaussian merge
+      lon: optional longitude grid (xr.DataArray) required for gaussian merge
+      sat_name_a: satellite key for the first array (used by gaussian merge)
+      sat_name_b: satellite key for the second array (used by gaussian merge)
+      sigma_deg: Gaussian sigma in degrees (used by gaussian merge)
 
     Returns:
       A new DataArray containing merged values.
@@ -173,7 +178,9 @@ def merge_086um_band(
 
     # Handle missing bands gracefully
     if band_gk2a is None and band_goes is None:
-        raise RuntimeError("No 0.86 µm band available in either GK2A or GOES-East stores.")
+        raise RuntimeError(
+            "No 0.86 µm band available in either GK2A or GOES-East stores."
+        )
 
     if band_gk2a is None:
         merged = band_goes.copy()
