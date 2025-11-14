@@ -9,10 +9,10 @@ This file provides:
 This is pure math and can be unit-tested with synthetic lat/lon grids.
 """
 
-from typing import Dict, Tuple, List
+from typing import Dict, List, Tuple
+
 import numpy as np
 import xarray as xr
-
 
 # ---------------------------------------------------------------------
 # Satellite sub-satellite points (lat, lon in degrees)
