@@ -49,7 +49,8 @@ def gaussian_weight_from_subpoint(
     Args:
       lat_grid: ndarray or DataArray (degrees)
       lon_grid: ndarray or DataArray (degrees)
-      lat0, lon0: sub-satellite point (degrees)
+      lat0: sub-satellite point latitude (degrees)
+      lon0: sub-satellite point longitude (degrees)
       sigma_deg: Gaussian sigma (degrees)
 
     Returns:
