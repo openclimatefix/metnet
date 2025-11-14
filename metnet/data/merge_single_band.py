@@ -178,9 +178,7 @@ def merge_086um_band(
 
     # Handle missing bands gracefully
     if band_gk2a is None and band_goes is None:
-        raise RuntimeError(
-            "No 0.86 µm band available in either GK2A or GOES-East stores."
-        )
+        raise RuntimeError("No 0.86 µm band available in either GK2A or GOES-East stores.")
 
     if band_gk2a is None:
         merged = band_goes.copy()
