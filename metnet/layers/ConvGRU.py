@@ -211,7 +211,8 @@ class ConvGRU(nn.Module):
         input_tensor:
             5-D Tensor either of shape (t, b, c, h, w) or (b, t, c, h, w)
         hidden_state:
-        Returns
+
+        Returns:
         -------
         last_state_list, layer_output
         """
