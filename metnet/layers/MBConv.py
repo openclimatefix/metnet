@@ -67,7 +67,7 @@ class MBConv(nn.Module):
             # TODO: Check if downscaling is needed at all. May impact layer normalisation.
             raise NotImplementedError(
                 "Downscaling in MBConv hasn't been implemented as it \
-                isnt used in Metnet3"
+                isn't used in Metnet3"
             )
 
         self.main_branch = nn.Sequential(
