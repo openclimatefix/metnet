@@ -4,8 +4,25 @@ from metnet.layers.SqueezeExcitation import SqueezeExcite
 from metnet.layers.MBConv import MBConv
 from metnet.layers.MultiheadSelfAttention2D import MultiheadSelfAttention2D
 from metnet.layers.PartitionAttention import BlockAttention, GridAttention
+from metnet.layers.ConditionWithTimeMetNet3 import ConditionWithTimeMetNet3
+
 import torch
 
+
+def test_condition_with_time_metnet3():
+    batch, channels, height, width = 2, 512, 16, 16
+    test_tensor = torch.rand(batch, channels, height, width)
+
+    conditioner = ConditionWithTimeMetNet3()
+
+    # Check output shapes
+    scale, bias = conditioner(test_tensor, timestep=0)
+    assert scale.shape == (batch, 512)
+    assert bias.shape == (batch, 512)
+
+    # Check identity initialization — scale should be ~1, bias should be ~0
+    assert torch.allclose(scale, torch.ones_like(scale))
+    assert torch.allclose(bias, torch.zeros_like(bias))
 
 def test_stochastic_depth():
     test_tensor = torch.ones(1)
@@ -70,3 +87,5 @@ def test_metnet_maxvit():
 
     metnet_maxvit = MetNetMaxVit(in_channels=c)
     assert test_tensor.shape == metnet_maxvit(test_tensor).shape
+
+
