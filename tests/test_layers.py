@@ -24,6 +24,7 @@ def test_condition_with_time_metnet3():
     assert torch.allclose(scale, torch.ones_like(scale))
     assert torch.allclose(bias, torch.zeros_like(bias))
 
+
 def test_stochastic_depth():
     test_tensor = torch.ones(1)
 
@@ -87,5 +88,3 @@ def test_metnet_maxvit():
 
     metnet_maxvit = MetNetMaxVit(in_channels=c)
     assert test_tensor.shape == metnet_maxvit(test_tensor).shape
-
-

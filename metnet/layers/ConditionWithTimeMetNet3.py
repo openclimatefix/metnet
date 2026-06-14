@@ -8,7 +8,9 @@ from torch import nn as nn
 class ConditionWithTimeMetNet3(nn.Module):
     """Compute Scale and bias for conditioning on time."""
 
-    def __init__(self, forecast_steps: int = 722, hidden_dim: int = 32, num_feature_maps: int = 512):
+    def __init__(
+        self, forecast_steps: int = 722, hidden_dim: int = 32, num_feature_maps: int = 512
+    ):
         """
         Compute the scale and bias factors for conditioning convolutional blocks on forecast time.
 
@@ -28,13 +30,11 @@ class ConditionWithTimeMetNet3(nn.Module):
                 nn.Linear(in_features=forecast_steps, out_features=hidden_dim),
                 nn.Linear(in_features=hidden_dim, out_features=2 * num_feature_maps),
             ]
-        
         )
         # Initialize second layer as identity function
         nn.init.zeros_(self.lead_time_network[1].weight)
         nn.init.zeros_(self.lead_time_network[1].bias)
         self.lead_time_network[1].bias.data[0::2] = 1.0
-        
 
     def forward(self, x: torch.Tensor, timestep: int) -> [torch.Tensor, torch.Tensor]:
         """
