@@ -4,7 +4,45 @@ from metnet.layers.SqueezeExcitation import SqueezeExcite
 from metnet.layers.MBConv import MBConv
 from metnet.layers.MultiheadSelfAttention2D import MultiheadSelfAttention2D
 from metnet.layers.PartitionAttention import BlockAttention, GridAttention
+from metnet.layers.ConditionWithTimeMetNet3 import ConditionWithTimeMetNet3
+from metnet.layers.LeadTimeConditioner import LeadTimeConditioner
+
 import torch
+
+
+def test_condition_with_time_metnet3():
+    batch, channels, height, width = 2, 512, 16, 16
+    test_tensor = torch.rand(batch, channels, height, width)
+
+    conditioner = ConditionWithTimeMetNet3()
+
+    # Check output shapes
+    scale, bias = conditioner(test_tensor, timestep=0)
+    assert scale.shape == (batch, 512)
+    assert bias.shape == (batch, 512)
+
+    # Check identity initialization — scale should be ~1, bias should be ~0
+    assert torch.allclose(scale, torch.ones_like(scale))
+    assert torch.allclose(bias, torch.zeros_like(bias))
+
+
+def test_backward_pass_gradients_flow():
+    """Ensure gradients flow through the lead time network on a backward pass."""
+    batch, channels, height, width = 2, 512, 16, 16
+    test_tensor = torch.rand(batch, channels, height, width)
+    conditioner = ConditionWithTimeMetNet3()
+    film = LeadTimeConditioner()
+
+    scale, bias = conditioner(test_tensor, timestep=0)
+
+    # Simulate FiLM conditioning, then reduce to a scalar loss
+    conditioned = film(test_tensor, scale, bias)
+    loss = conditioned.sum()
+    loss.backward()
+
+    for name, param in conditioner.named_parameters():
+        assert param.grad is not None, f"No gradient for {name}"
+        assert torch.isfinite(param.grad).all(), f"Non-finite gradient in {name}"
 
 
 def test_stochastic_depth():
