@@ -11,19 +11,20 @@ from metnet.layers.TopographicalEmbedding import TopographicalEmbedding
 
 import torch
 
+
 def test_topographical_embedding_gradients():
     batch, channels, height, width = 2, 12, 624, 624
     x = torch.rand(batch, channels, height, width)
-    
+
     embedding = TopographicalEmbedding(grid_height=624, grid_width=624)
     output = embedding(x)
-    
+
     loss = output.sum()
     loss.backward()
 
-    #Check output shapes
+    # Check output shapes
     assert output.shape == (batch, 20, height, width)
-    
+
     # embedding_grid is a learned parameter so should have gradients
     for name, param in embedding.named_parameters():
         assert param.grad is not None, f"No gradient for {name}"
@@ -33,16 +34,16 @@ def test_topographical_embedding_gradients():
 def test_input_embedding_gradients():
     batch, in_channels, height, width = 2, 793, 16, 16
     x = torch.rand(batch, in_channels, height, width)
-    
+
     embedding = InputEmbedding(in_channels=793)
     output = embedding(x)
-    
+
     loss = output.sum()
     loss.backward()
 
-    #Check output shapes
+    # Check output shapes
     assert output.shape == (batch, 512, height, width)
-    
+
     for name, param in embedding.named_parameters():
         assert param.grad is not None, f"No gradient for {name}"
         assert torch.isfinite(param.grad).all(), f"Non-finite gradient in {name}"
