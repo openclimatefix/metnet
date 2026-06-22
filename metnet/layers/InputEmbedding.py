@@ -1,5 +1,4 @@
-"""Input embedding layer for MetNet-3, projecting concatenated inputs to the
-internal channel representation."""
+"""Input embedding layer for MetNet-3"""
 
 import torch
 from torch import nn as nn
@@ -18,7 +17,8 @@ class InputEmbedding(nn.Module):
     """
 
     def __init__(self, in_channels: int, out_channels: int = 512):
-        """
+        """Initialize InputEmbedding.
+        
         Args:
             in_channels: Number of input channels after concatenating all inputs
                 (e.g. 793 for the 4km high-resolution path, 17 for the 8km
@@ -29,7 +29,8 @@ class InputEmbedding(nn.Module):
         self.embed = nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
+        """Compute input embeddings
+
         Args:
             x: Concatenated input tensor of shape [Batch, in_channels, Height, Width]
 
