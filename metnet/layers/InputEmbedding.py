@@ -4,6 +4,7 @@ internal channel representation."""
 import torch
 from torch import nn as nn
 
+
 class InputEmbedding(nn.Module):
     """
     Project concatenated input channels to the network's internal representation size.
