@@ -33,7 +33,7 @@ from datasets import load_dataset
 dataset = load_dataset("openclimatefix/goes-mrms")
 ```
 
-This uses the publicly avaiilable GOES-16 data and the MRMS archive to create a similar set of data to train and test on, with various other splits available as well.
+This uses the publicly available GOES-16 data and the MRMS archive to create a similar set of data to train and test on, with various other splits available as well.
 
 ## Pretrained Weights
 Pretrained model weights for MetNet and MetNet-2 have not been publicly released, and there is some difficulty in reproducing their training. We release weights for both MetNet and MetNet-2 trained on cloud mask and satellite imagery data with the same parameters as detailed in the papers on HuggingFace Hub for [MetNet](https://huggingface.co/openclimatefix/metnet) and [MetNet-2](https://huggingface.co/openclimatefix/metnet-2). These weights can be downloaded and used using:
