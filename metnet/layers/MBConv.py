@@ -65,10 +65,8 @@ class MBConv(nn.Module):
 
         if self.downscale:
             # TODO: Check if downscaling is needed at all. May impact layer normalisation.
-            raise NotImplementedError(
-                "Downscaling in MBConv hasn't been implemented as it \
-                isnt used in Metnet3"
-            )
+            raise NotImplementedError("Downscaling in MBConv hasn't been implemented as it \
+                isnt used in Metnet3")
 
         self.main_branch = nn.Sequential(
             self.pre_norm,  # Pre Normalize over the last three dimensions (i.e. the channel and spatial dimensions) # noqa
