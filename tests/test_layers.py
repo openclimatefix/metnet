@@ -1,3 +1,4 @@
+from metnet.layers.InputEmbedding import InputEmbedding
 from metnet.layers.MaxViT import MaxViTBlock, MaxViTDataClass, MetNetMaxVit
 from metnet.layers.StochasticDepth import StochasticDepth
 from metnet.layers.SqueezeExcitation import SqueezeExcite
@@ -6,8 +7,46 @@ from metnet.layers.MultiheadSelfAttention2D import MultiheadSelfAttention2D
 from metnet.layers.PartitionAttention import BlockAttention, GridAttention
 from metnet.layers.ConditionWithTimeMetNet3 import ConditionWithTimeMetNet3
 from metnet.layers.LeadTimeConditioner import LeadTimeConditioner
+from metnet.layers.TopographicalEmbedding import TopographicalEmbedding
 
 import torch
+
+
+def test_topographical_embedding_gradients():
+    batch, channels, height, width = 2, 12, 624, 624
+    x = torch.rand(batch, channels, height, width)
+
+    embedding = TopographicalEmbedding(grid_height=624, grid_width=624)
+    output = embedding(x)
+
+    loss = output.sum()
+    loss.backward()
+
+    # Check output shapes
+    assert output.shape == (batch, 20, height, width)
+
+    # embedding_grid is a learned parameter so should have gradients
+    for name, param in embedding.named_parameters():
+        assert param.grad is not None, f"No gradient for {name}"
+        assert torch.isfinite(param.grad).all(), f"Non-finite gradient in {name}"
+
+
+def test_input_embedding_gradients():
+    batch, in_channels, height, width = 2, 793, 16, 16
+    x = torch.rand(batch, in_channels, height, width)
+
+    embedding = InputEmbedding(in_channels=793)
+    output = embedding(x)
+
+    loss = output.sum()
+    loss.backward()
+
+    # Check output shapes
+    assert output.shape == (batch, 512, height, width)
+
+    for name, param in embedding.named_parameters():
+        assert param.grad is not None, f"No gradient for {name}"
+        assert torch.isfinite(param.grad).all(), f"Non-finite gradient in {name}"
 
 
 def test_condition_with_time_metnet3():
