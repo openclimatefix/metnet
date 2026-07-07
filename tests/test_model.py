@@ -4,6 +4,8 @@ from metnet import MetNet, MetNet2, MetNet3, MetNetPV
 
 
 def test_metnet3_forward():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
     model = MetNet3(
         # Use small sizes to keep test fast on CPU
         grid_height=16,
@@ -14,11 +16,11 @@ def test_metnet3_forward():
         crop_8km=8,
         crop_16km=4,
         crop_output=4,
-    )
+    ).to(device)
 
     # Use small spatial size to avoid OOM on CPU
-    high_res = torch.rand(1, 773, 64, 64)
-    low_res = torch.rand(1, 17, 64, 64)
+    high_res = torch.rand(1, 773, 64, 64).to(device)
+    low_res = torch.rand(1, 17, 64, 64).to(device)
 
     out_surface, out_hrrr, out_precip = model(high_res, low_res, lead_time=0)
 
@@ -34,7 +36,6 @@ def test_metnet3_forward():
     for name, param in model.named_parameters():
         assert param.grad is not None, f"No gradient for {name}"
         assert torch.isfinite(param.grad).all(), f"Non-finite gradient in {name}"
-
 
 def test_metnet_creation():
     model = MetNet(
