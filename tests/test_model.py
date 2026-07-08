@@ -5,7 +5,7 @@ from metnet import MetNet, MetNet2, MetNet3, MetNetPV
 
 def test_metnet3_forward():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
     model = MetNet3(
         # Use small sizes to keep test fast on CPU
         grid_height=16,
@@ -36,6 +36,7 @@ def test_metnet3_forward():
     for name, param in model.named_parameters():
         assert param.grad is not None, f"No gradient for {name}"
         assert torch.isfinite(param.grad).all(), f"Non-finite gradient in {name}"
+
 
 def test_metnet_creation():
     model = MetNet(
