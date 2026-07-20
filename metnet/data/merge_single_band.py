@@ -73,6 +73,7 @@ def merge_two_arrays(
     sat_name_a: str = "gk2a",
     sat_name_b: str = "goes_east",
     sigma_deg: float = 20.0,
+    subpoints: Optional[Mapping[str, tuple]] = None,
 ) -> xr.DataArray:
     """
     Merge two DataArrays on a common grid by aligning their coordinates.
@@ -99,6 +100,7 @@ def merge_two_arrays(
       sat_name_a: satellite key for the first array (used by gaussian merge)
       sat_name_b: satellite key for the second array (used by gaussian merge)
       sigma_deg: Gaussian sigma in degrees (used by gaussian merge)
+      subpoints: optional dict mapping satellite names to (lat, lon) tuples for gaussian range
 
     Returns:
       A new DataArray containing merged values.
@@ -107,6 +109,9 @@ def merge_two_arrays(
     if method == "gaussian":
         if lat is None or lon is None:
             raise ValueError("lat and lon grids are required for method='gaussian'.")
+
+        if subpoints is None:
+            subpoints = {sat_name_a: (0.0, 0.0), sat_name_b: (0.0, 0.0)}
 
         merged = gaussian_merge_multi(
             arrays=[satellite_one, satellite_two],
