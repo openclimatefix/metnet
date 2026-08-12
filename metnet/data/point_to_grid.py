@@ -11,27 +11,28 @@ The 14 variables used are based on the OMO variable list at:
 https://madis.ncep.noaa.gov/sfc_OMO_variable_list.shtml
 """
 
+from typing import Dict, List
+
 import numpy as np
 import torch
 from pyproj import Transformer
-from typing import List, Dict
 
 # Best approximation of the 14 OMO input variables using MADIS ASOS
 OMO_VARIABLES = [
-    "T",        # air temperature (K)
-    "TD",       # dewpoint temperature (K)
-    "RH",       # relative humidity (%)
-    "P",        # station pressure (Pa)
-    "DD",       # wind direction (deg)
-    "FF",       # wind speed (m/s)
-    "U",        # u wind component (m/s)
-    "V",        # v wind component (m/s)
-    "FFGUST",   # wind gust (m/s)
-    "VIS",      # visibility (m)
+    "T",  # air temperature (K)
+    "TD",  # dewpoint temperature (K)
+    "RH",  # relative humidity (%)
+    "P",  # station pressure (Pa)
+    "DD",  # wind direction (deg)
+    "FF",  # wind speed (m/s)
+    "U",  # u wind component (m/s)
+    "V",  # v wind component (m/s)
+    "FFGUST",  # wind gust (m/s)
+    "VIS",  # visibility (m)
     "PCPRATE",  # precipitation rate (kg/m²/s)
-    "PCP1H",    # accumulated precip 1h (m)
-    "Q",        # specific humidity (kg/kg)
-    "ALTSE",    # altimeter pressure (Pa)
+    "PCP1H",  # accumulated precip 1h (m)
+    "Q",  # specific humidity (kg/kg)
+    "ALTSE",  # altimeter pressure (Pa)
 ]
 
 

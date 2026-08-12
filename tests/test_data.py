@@ -1,6 +1,7 @@
 import torch
 from metnet.data.point_to_grid import PointToGridTranslator
 
+
 def make_translator(
     grid_height=10,
     grid_width=10,
@@ -25,32 +26,48 @@ def make_translator(
         fill_value=fill_value,
     )
 
+
 SAMPLE_STATION = {
-    "lat": 40.0, "lon": -95.0,
-    "T": 295.0, "TD": 288.0, "RH": 70.0,
-    "P": 101325.0, "DD": 180.0, "FF": 5.0,
-    "U": 0.0, "V": -5.0, "FFGUST": 8.0,
-    "VIS": 10000.0, "PCPRATE": 0.0,
-    "PCP1H": 0.0, "Q": 0.01, "ALTSE": 101325.0,
+    "lat": 40.0,
+    "lon": -95.0,
+    "T": 295.0,
+    "TD": 288.0,
+    "RH": 70.0,
+    "P": 101325.0,
+    "DD": 180.0,
+    "FF": 5.0,
+    "U": 0.0,
+    "V": -5.0,
+    "FFGUST": 8.0,
+    "VIS": 10000.0,
+    "PCPRATE": 0.0,
+    "PCP1H": 0.0,
+    "Q": 0.01,
+    "ALTSE": 101325.0,
 }
+
 
 def test_output_shape():
     output = make_translator().translate([SAMPLE_STATION])
     assert output.shape == (14, 10, 10)
 
+
 def test_fill_value():
     output = make_translator().translate([])
     assert (output == 0.0).all()
 
+
 def test_nan_handling():
-    station = {**SAMPLE_STATION, "T": float('nan')}
+    station = {**SAMPLE_STATION, "T": float("nan")}
     output = make_translator().translate([station])
     assert output[0].max() == 0.0
+
 
 def test_outside_bounds():
     station = {**SAMPLE_STATION, "lat": 60.0}
     output = make_translator().translate([station])
     assert (output == 0.0).all()
+
 
 def test_averaging():
     translator = make_translator(fill_value=-999.0)  # distinct fill value
