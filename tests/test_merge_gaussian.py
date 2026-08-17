@@ -8,7 +8,6 @@ from metnet.data.merge_single_band import (
     get_band_data,
 )
 
-
 # ---------------------------------------------------------
 # Helpers: create synthetic lat/lon grids
 # ---------------------------------------------------------
