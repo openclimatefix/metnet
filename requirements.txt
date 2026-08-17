@@ -5,3 +5,4 @@ antialiased_cnns
 axial_attention
 pytorch_msssim
 huggingface_hub
+pyproj>=3.0.0
