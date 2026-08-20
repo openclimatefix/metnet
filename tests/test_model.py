@@ -38,6 +38,44 @@ def test_metnet3_forward():
         assert torch.isfinite(param.grad).all(), f"Non-finite gradient in {name}"
 
 
+def test_metnet3_passes_lead_time_conditioning_to_maxvit():
+    model = MetNet3(
+        high_res_in_channels=3,
+        low_res_in_channels=2,
+        hidden_channels=32,
+        num_resnet_blocks=1,
+        num_maxvit_blocks=1,
+        grid_height=16,
+        grid_width=16,
+        crop_4km=4,
+        crop_8km=2,
+        crop_16km=1,
+        crop_output=2,
+        topographical_channels=2,
+        surface_output_channels=1,
+        hrrr_output_channels=1,
+        precip_output_channels=1,
+    )
+
+    with torch.no_grad():
+        conditioner_output = model.lead_time_conditioner.lead_time_network[1]
+        conditioner_output.bias[0::2].fill_(2.0)
+        conditioner_output.bias[1::2].fill_(3.0)
+
+    conditioning = []
+    model.maxvit.register_forward_pre_hook(lambda _module, args: conditioning.append(args[1:]))
+
+    with torch.no_grad():
+        model(
+            torch.rand(1, 3, 16, 16),
+            torch.rand(1, 2, 16, 16),
+            lead_time=0,
+        )
+
+    torch.testing.assert_close(conditioning[0][0], torch.full((1, 32), 2.0))
+    torch.testing.assert_close(conditioning[0][1], torch.full((1, 32), 3.0))
+
+
 def test_metnet_creation():
     model = MetNet(
         hidden_dim=32,
