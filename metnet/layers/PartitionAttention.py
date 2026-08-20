@@ -1,10 +1,11 @@
 """Implementation of Partition (Grid and Block) Attention."""
 
-from typing import Tuple, Type
+from typing import Optional, Tuple, Type
 
 import torch
 from torch import Tensor, nn
 
+from metnet.layers.LeadTimeConditioner import LeadTimeConditioner
 from metnet.layers.MultiheadSelfAttention2D import MultiheadSelfAttention2D
 from metnet.layers.RelativePositionBias import RelativePositionBias
 from metnet.layers.StochasticDepth import StochasticDepth
@@ -132,6 +133,7 @@ class PartitionAttention(nn.Module):
         )
         self.pre_norm_layer = pre_norm_layer(attn_grid_window_size)  # Norm along windows
         self.post_norm_layer = post_norm_layer(attn_grid_window_size)
+        self.lead_time_conditioner = LeadTimeConditioner()
 
         if use_mlp:
             self.mlp = PointwiseMLP(in_channels=in_channels)
@@ -181,7 +183,12 @@ class PartitionAttention(nn.Module):
         """
         raise NotImplementedError
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        X: torch.Tensor,
+        scale: Optional[torch.Tensor] = None,
+        bias: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """
         Forward pass.
 
@@ -189,6 +196,8 @@ class PartitionAttention(nn.Module):
         ----------
         X : torch.Tensor
             Input tensor of the shape [N, C, H, W].
+        scale, bias : torch.Tensor, optional
+            Multiplicative and additive FiLM parameters of the shape [N, C].
 
         Returns:
         -------
@@ -200,10 +209,17 @@ class PartitionAttention(nn.Module):
         # Perform partition
         input_partitioned = self.partition_function(X)
 
+        normalized = self.pre_norm_layer(input_partitioned)
+        if scale is not None or bias is not None:
+            scale = X.new_ones(X.shape[:2]) if scale is None else scale
+            bias = X.new_zeros(X.shape[:2]) if bias is None else bias
+            partitions_per_sample = input_partitioned.shape[0] // X.shape[0]
+            scale = scale.repeat_interleave(partitions_per_sample, dim=0)
+            bias = bias.repeat_interleave(partitions_per_sample, dim=0)
+            normalized = self.lead_time_conditioner(normalized, scale, bias)
+
         # Perform normalization, attention, and dropout
-        output = input_partitioned + self.drop_path(
-            self.attention(self.pre_norm_layer(input_partitioned))
-        )
+        output = input_partitioned + self.drop_path(self.attention(normalized))
 
         # Perform normalization, MLP, and dropout
         output = output + self.drop_path(self.mlp(self.post_norm_layer(output)))

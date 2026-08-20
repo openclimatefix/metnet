@@ -141,6 +141,39 @@ def test_maxvitblock():
     assert test_tensor.shape == maxvit_block(test_tensor).shape
 
 
+def test_maxvitblock_applies_lead_time_conditioning():
+    n, c, h, w = 2, 3, 16, 16
+    test_tensor = torch.arange(n * c * h * w, dtype=torch.float32).reshape(n, c, h, w)
+    scale = torch.tensor([[2.0] * c, [3.0] * c])
+    bias = torch.tensor([[1.0] * c, [4.0] * c])
+
+    maxvit_block = MaxViTBlock(in_channels=c, maxvit_config=MaxViTDataClass())
+    maxvit_block.mb_conv = torch.nn.Identity()
+    maxvit_block.block_attention.attention = torch.nn.Identity()
+    maxvit_block.grid_attention.attention = torch.nn.Identity()
+
+    normalized_inputs = []
+    conditioned_inputs = []
+    for attention in (maxvit_block.block_attention, maxvit_block.grid_attention):
+        attention.pre_norm_layer.register_forward_hook(
+            lambda _module, _args, output: normalized_inputs.append(output)
+        )
+        attention.attention.register_forward_pre_hook(
+            lambda _module, args: conditioned_inputs.append(args[0])
+        )
+
+    maxvit_block(test_tensor, scale, bias)
+
+    assert len(normalized_inputs) == len(conditioned_inputs) == 2
+    for normalized, conditioned in zip(normalized_inputs, conditioned_inputs):
+        partitions_per_sample = normalized.shape[0] // n
+        partition_scale = scale.repeat_interleave(partitions_per_sample, dim=0)
+        partition_bias = bias.repeat_interleave(partitions_per_sample, dim=0)
+        expected = normalized * partition_scale[:, :, None, None]
+        expected = expected + partition_bias[:, :, None, None]
+        torch.testing.assert_close(conditioned, expected)
+
+
 def test_metnet_maxvit():
     n, c, h, w = 1, 3, 16, 16
     test_tensor = torch.rand(n, c, h, w)

@@ -1,7 +1,7 @@
 """Implementation of MaxViT module."""
 
 from dataclasses import dataclass
-from typing import List, Tuple, Type, Union
+from typing import List, Optional, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -163,7 +163,12 @@ class MaxViTBlock(nn.Module):
             use_normalised_qk=self.config.grid_attention_use_normalised_qk,
         )
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        X: torch.Tensor,
+        scale: Optional[torch.Tensor] = None,
+        bias: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """
         Forward pass.
 
@@ -172,14 +177,18 @@ class MaxViTBlock(nn.Module):
         X : torch.Tensor
             Input tensor of the shape [N, C, H, W]
 
+        scale, bias : torch.Tensor, optional
+            Multiplicative and additive FiLM parameters of the shape
+            [N, C]
+
         Returns:
         -------
         torch.Tensor
             MaxViT block output tensor of the shape [N, C, H, W]
         """
         output = self.mb_conv(X)
-        output = self.block_attention(output)
-        output = self.grid_attention(output)
+        output = self.block_attention(output, scale, bias)
+        output = self.grid_attention(output, scale, bias)
 
         return output
 
@@ -242,7 +251,12 @@ class MetNetMaxVit(nn.Module):
             in_channels=self.in_channels, out_channels=self.in_channels, kernel_size=1
         )
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        X: torch.Tensor,
+        scale: Optional[torch.Tensor] = None,
+        bias: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """
         Forward method.
 
@@ -251,15 +265,19 @@ class MetNetMaxVit(nn.Module):
         X : torch.Tensor
             Input tensor
 
+        scale, bias : torch.Tensor, optional
+            Multiplicative and additive FiLM parameters of the shape [N, C].
+            When omitted, identity parameters are used.
+
         Returns:
         -------
         torch.Tensor
             Output of the MaxViT block.
         """
         model_output_list = []
-        model_output_list.append(self.maxvit_blocks[0](X))
+        model_output_list.append(self.maxvit_blocks[0](X, scale, bias))
         for i in range(1, self.num_blocks):
-            model_output_list.append(self.maxvit_blocks[i](model_output_list[i - 1]))
+            model_output_list.append(self.maxvit_blocks[i](model_output_list[i - 1], scale, bias))
 
         output = X + torch.stack(model_output_list).sum(dim=0)
 
