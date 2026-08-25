@@ -314,7 +314,7 @@ class MetNet3(torch.nn.Module, PyTorchModelHubMixin):
         x = self.downsample_8km(x)  # 624 → 312
 
         # --- 16km Bottleneck ---
-        x = self.maxvit(x)
+        x = self.maxvit(x, scale, bias)
         x = self.center_crop_16km(x)  # crop to 768² km → 48x48
 
         # --- 8km Decoder ---
