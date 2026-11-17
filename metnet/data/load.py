@@ -11,6 +11,25 @@ MRMS_BUCKET = "s3://noaa-mrms-pds"
 MRMS_SHAPE = (3500, 7000)  # fixed ~1 km CONUS grid
 
 
+def _crop_and_resample(data, lats, lons, lat_min, lat_max, lon_min, lon_max, target_resolution_km):
+    """Mask fill values, crop to the bounding box, and average-pool."""
+    lons = np.where(lons > 180, lons - 360, lons)
+    data = np.where(data < 0, np.nan, data)
+
+    eps = 1e-4
+    lat_mask = (lats[:, 0] >= lat_min - eps) & (lats[:, 0] <= lat_max + eps)
+    lon_mask = (lons[0, :] >= lon_min - eps) & (lons[0, :] <= lon_max + eps)
+    data = data[np.ix_(lat_mask, lon_mask)]
+
+    factor = int(target_resolution_km)
+    if factor > 1:
+        h, w = data.shape
+        h_new, w_new = h // factor, w // factor
+        data = data[: h_new * factor, : w_new * factor]
+        data = np.nanmean(data.reshape(h_new, factor, w_new, factor), axis=(1, 3))
+    return data
+
+
 def load_mrms(
     timestamp: datetime,
     product: str = "PrecipRate",
@@ -69,25 +88,6 @@ def load_mrms(
     lats = lats.reshape(MRMS_SHAPE)
     lons = lons.reshape(MRMS_SHAPE)
 
-    # Convert longitudes from 0-360 to -180 to 180
-    lons = np.where(lons > 180, lons - 360, lons)
-
-    # Replace MRMS fill values with NaN
-    data = np.where(data < 0, np.nan, data)
-
-    # Crop to domain. The grid is regular, so rows depend only on latitude
-    # and columns only on longitude. eps keeps points exactly on a bound.
-    eps = 1e-4
-    lat_mask = (lats[:, 0] >= lat_min - eps) & (lats[:, 0] <= lat_max + eps)
-    lon_mask = (lons[0, :] >= lon_min - eps) & (lons[0, :] <= lon_max + eps)
-    data = data[np.ix_(lat_mask, lon_mask)]
-
-    # Resample to target resolution via average pooling (native MRMS is ~1 km)
-    factor = int(target_resolution_km)
-    if factor > 1:
-        h, w = data.shape
-        h_new, w_new = h // factor, w // factor
-        data = data[: h_new * factor, : w_new * factor]
-        data = np.nanmean(data.reshape(h_new, factor, w_new, factor), axis=(1, 3))
-
-    return data
+    return _crop_and_resample(
+        data, lats, lons, lat_min, lat_max, lon_min, lon_max, target_resolution_km
+    )
