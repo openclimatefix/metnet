@@ -6,3 +6,6 @@ axial_attention
 pytorch_msssim
 huggingface_hub
 pyproj>=3.0.0
+fsspec
+s3fs
+eccodes
